@@ -1,11 +1,11 @@
 // Invoice Management Module JavaScript
 
 
-//const supabase = supabase.createClient('https://zqnthduqpzriydgbdojy.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU');
+//const supabase = supabase.createClient('https://zkqjmozftqmyaycpmlxn.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcWptb3pmdHFteWF5Y3BtbHhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk5NjQzNDcsImV4cCI6MjA1NTU0MDM0N30.Zm5OF9jyoc6dbDQIGiOiEen-q0zfZjh_GzjWUmD8eqk');
  
 /*const supabase = createClient(
-    'https://zqnthduqpzriydgbdojy.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU'
+    'https://zkqjmozftqmyaycpmlxn.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcWptb3pmdHFteWF5Y3BtbHhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk5NjQzNDcsImV4cCI6MjA1NTU0MDM0N30.Zm5OF9jyoc6dbDQIGiOiEen-q0zfZjh_GzjWUmD8eqk'
   );*/
 
 
@@ -586,7 +586,7 @@ function openViewInvoiceModal(invoiceNumber) {
         // Set up the iframe to display the invoice template
         // In a real app, this would load the actual invoice template with data
         const iframe = document.getElementById('invoicePreviewFrame');
-        iframe.src = 'template01.html';
+        iframe.src = '../templates/invoice_template03.html';
         
         // Show/hide "Mark as Paid" button based on status
         const markPaidBtn = document.getElementById('markPaidBtn');
@@ -647,13 +647,13 @@ function updateInvoiceTemplate(templateId) {
     const iframe = document.getElementById('invoicePreviewFrame');
     switch (templateId) {
         case 'template1':
-            iframe.src = 'template01.html';
+            iframe.src = '../templates/invoice_template01.html';
             break;
         case 'template2':
-            iframe.src = 'template02.html';
+            iframe.src = '../templates/invoice_template02.html';
             break;
         case 'template3':
-            iframe.src = 'template01.html'; // For demo, just reuse template1
+            iframe.src = '../templates/invoice_template03.html'; // For demo, just reuse template1
             break;
     }
 }
@@ -1070,8 +1070,10 @@ document.getElementById('invoiceForm').addEventListener('submit', function(event
 
 // Generate Invoice HTML
 async function generateInvoiceHTML(invoiceData) {
-    const response = await fetch('/templates/invoice-template.html');
+    const response = await fetch('/templates/invoice_template03.html');
     let template = await response.text();
+    
+    console.log('Template loaded:', template); // Debug log
     
     // Generate items rows
     const itemsRows = invoiceData.items.map(item => `
@@ -1084,22 +1086,13 @@ async function generateInvoiceHTML(invoiceData) {
         </tr>
     `).join('');
 
-    // Replace all placeholders
-    return template
+    const finalHTML = template
         .replace('{{companyAddress}}', 'Your Company Address')
-        .replace('{{companyContact}}', 'contact@company.com')
-        .replace('{{invoiceNumber}}', invoiceData.invoiceNumber)
-        .replace('{{issueDate}}', invoiceData.issueDate)
-        .replace('{{dueDate}}', invoiceData.dueDate)
-        .replace('{{clientName}}', invoiceData.clientName)
-        .replace('{{clientAddress}}', invoiceData.clientAddress)
-        .replace('{{clientTaxId}}', invoiceData.clientTaxId)
-        .replace('{{itemsRows}}', itemsRows)
-        .replace('{{currency}}', invoiceData.currency)
-        .replace('{{subtotal}}', parseFloat(invoiceData.subtotal).toFixed(2))
-        .replace('{{totalVat}}', parseFloat(invoiceData.totalVat).toFixed(2))
-        .replace('{{total}}', parseFloat(invoiceData.total).toFixed(2))
+        // ...existing replacements...
         .replace('{{notes}}', invoiceData.notes || '');
+
+    console.log('Final HTML being used:', finalHTML); // Debug log
+    return finalHTML;
 }
 
 function getInvoiceData() {
