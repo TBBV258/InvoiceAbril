@@ -1,23 +1,25 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 // Replace these with your actual Supabase project URL and public anon key
-const eUrl = 'https://zqnthduqpzriydgbdojy.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU'
+const supabaseUrl = 'https://qvmtozjvjflygbkjecyj.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bXRvemp2amZseWdia2plY3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMjc2MjMsImV4cCI6MjA2MTcwMzYyM30.DJMC1eM5_EouM1oc07JaoXsMX_bSLn2AVCozAcdfHmo';
 
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export { supabase, supabaseUrl, supabaseKey };
 
 // Example function to sign in a user
 async function signIn(email, password) {
     const { user, session, error } = await supabase.auth.signIn({
         email: email,
         password: password,
-    })
+    });
 
     if (error) {
-        console.error('Error signing in:', error)
+        console.error('Error signing in:', error);
     } else {
-        console.log('User signed in:', user)
-        console.log('Session:', session)
+        console.log('User signed in:', user);
+        console.log('Session:', session);
     }
 }
 
@@ -26,25 +28,24 @@ async function signUp(email, password) {
     const { user, session, error } = await supabase.auth.signUp({
         email: email,
         password: password,
-    })
+    });
 
     if (error) {
-        console.error('Error signing up:', error)
+        console.error('Error signing up:', error);
     } else {
-        console.log('User signed up:', user)
-        console.log('Session:', session)
+        console.log('User signed up:', user);
+        console.log('Session:', session);
     }
 }
 
 // Example function to sign out the current user
 async function signOut() {
-    const { error } = await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut();
 
     if (error) {
-        console.error('Error signing out:', error)
+        console.error('Error signing out:', error);
     } else {
-        console.log('User signed out')
+        console.log('User signed out');
     }
 }
 
-export { signIn, signUp, signOut }

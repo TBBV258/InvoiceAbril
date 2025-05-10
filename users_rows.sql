@@ -1,0 +1,1 @@
+INSERT INTO "public"."users" ("id", "full_name", "email", "role", "created_at") VALUES ('641a5e7f-5c1d-4b20-bab0-4cc3d4e44eaa', null, 'kevin.cossa.kc@gmail.com', 'viewer', '2025-05-01 19:42:29.791078+00'), ('c2fd4958-d22e-4f1d-adba-979702e46b83', null, 'vanpaulocossa@gmail.com', 'viewer', '2025-05-06 20:35:46.533998+00');

@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileMenu();
   initDropdowns();
   initToasts();
+  initNewClientForm();
 
   // Log initialization
   console.log('Client Management Interface initialized');
@@ -243,6 +244,185 @@ function debounce(func, wait = 300) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+/**
+ * Initialize New Client functionality
+ */
+function initNewClientForm() {
+  const addNewClientBtn = document.getElementById('add-new-client-btn');
+  const clientForm = document.getElementById('client-form');
+  const formTitle = document.getElementById('form-title');
+  
+  if (!addNewClientBtn || !clientForm) return;
+
+  addNewClientBtn.addEventListener('click', () => {
+    // Reset form and set title
+    resetClientForm();
+    formTitle.textContent = 'New Client';
+    
+    // Show form container on mobile
+    const formContainer = document.getElementById('client-form-container');
+    if (formContainer && window.innerWidth < 1200) {
+      formContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
+  // Handle form submission
+  clientForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    if (!validateClientForm(clientForm)) {
+      window.appUtils.showToast('Please fill in all required fields correctly', 'error');
+      return;
+    }
+
+    try {
+      const formData = getClientFormData();
+      const response = await saveClientData(formData);
+      
+      if (response.success) {
+        window.appUtils.showToast('Client saved successfully', 'success');
+        resetClientForm();
+        if (typeof refreshClientList === 'function') {
+          refreshClientList();
+        }
+      } else {
+        throw new Error(response.message || 'Failed to save client');
+      }
+    } catch (error) {
+      console.error('Error saving client:', error);
+      window.appUtils.showToast(error.message, 'error');
+    }
+  });
+}
+
+/**
+ * Get all form data as a structured object
+ * @returns {Object} Formatted client data
+ */
+function getClientFormData() {
+  // Simplified structure that matches database schema
+  return {
+    company_name: document.getElementById('company-name')?.value || '',
+    customer_tax_id: document.getElementById('customer-tax-id')?.value || '',
+    contact: document.getElementById('contact')?.value || '',
+    billing_address: document.getElementById('billing-address')?.value || '',
+    street_name: document.getElementById('street-name')?.value || '',
+    address_detail: document.getElementById('address-detail')?.value || '',
+    city: document.getElementById('city')?.value || '',
+    postal_code: document.getElementById('postal-code')?.value || '',
+    province: document.getElementById('province')?.value || '',
+    country: document.getElementById('country')?.value || '',
+    ship_to_address: document.getElementById('ship-to-address')?.value || '',
+    building_number: document.getElementById('building-number')?.value || '',
+    telephone: document.getElementById('telephone')?.value || '',
+    fax: document.getElementById('fax')?.value || '',
+    email: document.getElementById('email')?.value || '',
+    website: document.getElementById('website')?.value || ''
+  };
+}
+
+/**
+ * Save client data to the backend
+ * @param {Object} clientData - The client data to save
+ * @returns {Promise} Response from the save operation
+ */
+async function saveClientData(clientData) {
+  try {
+    const { data, error } = await window.supabase
+      .from('clients')
+      .insert([clientData])
+      .select();
+
+    if (error) throw error;
+    
+    return {
+      success: true,
+      data: data[0]
+    };
+  } catch (error) {
+    console.error('Error saving client:', error);
+    return {
+      success: false,
+      message: error.message
+    };
+  }
+}
+
+/**
+ * Validate the client form
+ * @param {HTMLFormElement} form - The form to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+function validateClientForm(form) {
+  let isValid = true;
+  
+  // Required fields validation
+  const requiredFields = [
+    'company-name',
+    'customer-tax-id',
+    'email'
+  ];
+
+  requiredFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (!field || !field.value.trim()) {
+      isValid = false;
+      field?.classList.add('error');
+    } else {
+      field?.classList.remove('error');
+    }
+  });
+
+  // Email validation
+  const emailField = document.getElementById('email');
+  if (emailField && emailField.value && !isValidEmail(emailField.value)) {
+    isValid = false;
+    emailField.classList.add('error');
+  }
+
+  // Phone validation if provided
+  const phoneField = document.getElementById('telephone');
+  if (phoneField && phoneField.value && !isValidPhone(phoneField.value)) {
+    isValid = false;
+    phoneField.classList.add('error');
+  }
+
+  return isValid;
+}
+
+/**
+ * Reset the client form to its initial state
+ */
+function resetClientForm() {
+  const form = document.getElementById('client-form');
+  if (!form) return;
+
+  // Reset form fields
+  form.reset();
+
+  // Reset client type
+  document.getElementById('individual-type').checked = true;
+  const companyNameField = document.getElementById('company-name')?.closest('.form-group');
+  if (companyNameField) companyNameField.style.display = 'none';
+
+  // Reset tax rate
+  const otherVatContainer = document.getElementById('other-vat-container');
+  if (otherVatContainer) otherVatContainer.style.display = 'none';
+
+  // Reset tabs
+  const firstTab = document.querySelector('.tab-btn');
+  if (firstTab) firstTab.click();
+
+  // Remove validation errors
+  form.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+
+  // Clear display name options
+  const displayNameSelect = document.getElementById('display-name');
+  if (displayNameSelect) {
+    displayNameSelect.innerHTML = '<option value="">Select or type...</option>';
+  }
 }
 
 // Export utilities for use in other modules

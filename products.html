@@ -313,7 +313,7 @@
 
     .frame-left {
       width: 300px; /* Fixed width */
-      height: 500px; /* Fixed height */
+      height: 600px; /* Fixed height */
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -325,7 +325,7 @@
     }
 
     .frame-right {
-      max-height: 500px;
+      max-height: 600px;
       overflow-y: auto;
       position: relative; /* Add relative positioning */
     }
@@ -517,23 +517,28 @@
             <form id="product-form">
               <label for="description">Description:</label>
               <input type="text" id="description" name="description" required>
-              
-              <label for="price">Default Price:</label>
-              <input type="number" id="price" name="price" required>
-              
-              <label for="vat">Default VAT:</label>
+
+              <label for="price">Price:</label>
+              <input type="number" id="price" name="price" step="0.01" required>
+
+              <label for="tax-code">Tax Code (SAT):</label>
+              <input type="text" id="tax-code" name="tax-code" required placeholder="e.g. 10101">
+
+              <label for="tax-rate">Tax Rate (VAT):</label>
               <select id="vat" name="vat" required>
                 <option value="0.16">16%</option>
                 <option value="0.05">5%</option>
                 <option value="0">Exempt</option>
                 <option value="other">Other</option>
               </select>
-              
               <div id="other-vat-container" style="display: none;">
                 <label for="other-vat">Other VAT Percentage:</label>
-                <input type="number" id="other-vat" name="other-vat">
+                <input type="number" id="other-vat" name="other-vat" min="0" max="100" step="0.01">
               </div>
-              
+
+              <label for="industry">Industry (SAT):</label>
+              <input type="text" id="industry" name="industry" required placeholder="e.g. Retail">
+
               <button type="button" onclick="saveProduct()">Save</button>
               <button type="button" onclick="discardChanges()">Discard</button>
             </form>
@@ -554,8 +559,8 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0/+esm';
 
-    const supabaseUrl = 'https://zqnthduqpzriydgbdojy.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU';
+    const supabaseUrl = 'https://qvmtozjvjflygbkjecyj.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bXRvemp2amZseWdia2plY3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMjc2MjMsImV4cCI6MjA2MTcwMzYyM30.DJMC1eM5_EouM1oc07JaoXsMX_bSLn2AVCozAcdfHmo';
  // Replace with your actual Supabase key
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -625,9 +630,18 @@
     }
 
     async function fetchProducts() {
+      // Obter o usuário logado
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session || !session.user) {
+        console.error('Erro ao obter sessão:', sessionError?.message);
+        return;
+      }
+      const userId = session.user.id;
+      // Buscar apenas produtos do usuário logado
       const { data, count, error } = await supabase
         .from('products')
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error fetching products:', error);
@@ -645,42 +659,52 @@
     }
 
     async function saveProduct() {
+      // Obter o usuário logado
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session || !session.user) {
+        alert('Usuário não autenticado. Faça login novamente.');
+        return;
+      }
+      const userId = session.user.id;
       const description = document.getElementById('description').value;
       const price = parseFloat(document.getElementById('price').value);
-      const vatDisplay = document.getElementById('vat').value === 'other' 
-        ? `${document.getElementById('other-vat').value}%` 
-        : document.getElementById('vat').value;
-      const vat = parseVatFromDisplay(vatDisplay);
+      const taxCode = document.getElementById('tax-code').value;
+      const taxRate = parseFloat(document.getElementById('vat').value);
+      const industry = document.getElementById('industry').value;
 
-      // Validate required fields
-      if (!description || isNaN(price)) {
+      if (!description || isNaN(price) || !taxCode || isNaN(taxRate) || !industry) {
         alert('Please fill in all required fields.');
         return;
       }
 
-      // Log the data being sent to Supabase
-      console.log('Inserting product:', { description, price, vat });
-
       try {
         const { data, error } = await supabase
           .from('products')
-          .insert([{ description, price, vat }])
-          .select(); // Ensure the inserted row is returned
+          .insert([{ description, price, tax_code: taxCode, tax_rate: taxRate, industry, user_id: userId }])
+          .select();
 
         if (error) {
-          console.error('Error saving product:', error.message);
-          alert(`Error saving product: ${error.message}`);
+          alert('Error saving product: ' + error.message);
           return;
         }
 
-        products.push(data[0]); // Add the new product to the local array
+        products.push(data[0]);
         displayProducts();
         document.getElementById('product-form').reset();
-        document.getElementById('other-vat-container').style.display = 'none';
       } catch (err) {
-        console.error('Unexpected error:', err);
-        alert('An unexpected error occurred. Please try again.');
+        alert('Unexpected error: ' + err.message);
       }
+    }
+
+    async function logProductUpdate(productId, oldData, newData, userId) {
+      await supabase.from('product_updates').insert([
+        {
+          product_id: productId,
+          old_data: JSON.stringify(oldData),
+          new_data: JSON.stringify(newData),
+          updated_by: userId
+        }
+      ]);
     }
 
     async function editProduct(index) {
@@ -696,6 +720,7 @@
       }
 
       const saveButton = document.querySelector('#product-form button[type="button"]');
+      saveButton.textContent = 'Update Product';
       saveButton.onclick = async function () {
         const updatedDescription = document.getElementById('description').value;
         const updatedPrice = parseFloat(document.getElementById('price').value);
@@ -703,22 +728,40 @@
           ? `${document.getElementById('other-vat').value}%` 
           : document.getElementById('vat').value;
         const updatedVat = parseVatFromDisplay(updatedVatDisplay);
+        const updatedTaxCode = document.getElementById('tax-code').value;
+        const updatedTaxRate = parseFloat(document.getElementById('tax-rate').value);
+        const updatedIndustry = document.getElementById('industry').value;
+
+        // Obter usuário logado
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const userId = session?.user?.id || null;
+
+        const oldData = { ...product };
+        const newData = {
+          description: updatedDescription,
+          price: updatedPrice,
+          vat: updatedVat,
+          tax_code: updatedTaxCode,
+          tax_rate: updatedTaxRate,
+          industry: updatedIndustry
+        };
 
         const { error } = await supabase
           .from('products')
-          .update({ description: updatedDescription, price: updatedPrice, vat: updatedVat })
+          .update(newData)
           .eq('id', product.id);
 
-        if (error) {
+        if (!error) {
+          await logProductUpdate(product.id, oldData, newData, userId);
+          products[index] = { ...product, ...newData };
+          displayProducts();
+          document.getElementById('product-form').reset();
+          document.getElementById('other-vat-container').style.display = 'none';
+          saveButton.textContent = 'Save';
+          saveButton.onclick = saveProduct;
+        } else {
           console.error('Error updating product:', error);
-          return;
         }
-
-        products[index] = { ...product, description: updatedDescription, price: updatedPrice, vat: updatedVat };
-        displayProducts();
-        document.getElementById('product-form').reset();
-        document.getElementById('other-vat-container').style.display = 'none';
-        saveButton.onclick = saveProduct; // Reset save button to default behavior
       };
     }
 
@@ -740,10 +783,14 @@
         const productItem = document.createElement('div');
         productItem.className = 'product-item';
         productItem.innerHTML = `
-          <span>${product.description} - ${formatCurrency(product.price)} - ${formatVatForDisplay(product.vat)}</span>
+          <span>
+            ${product.description} - ${formatCurrency(product.price)}<br>
+            <strong>Tax Code:</strong> ${product.tax_code} | 
+            <strong>Tax Rate:</strong> ${product.tax_rate}% | 
+            <strong>Industry:</strong> ${product.industry}
+          </span>
           <div>
-            <button class="edit-btn" onclick="editProduct(${index})">Edit</button>
-            <button class="delete-btn" onclick="deleteProduct(${index})">Delete</button>
+            <button class="edit-btn" onclick="editProduct(${index})">Update Product</button>
           </div>
         `;
         productList.appendChild(productItem);
@@ -782,9 +829,9 @@
       productItems.forEach((item) => {
         const productText = item.querySelector('span').textContent.toLowerCase();
         if (productText.includes(searchTerm)) {
-          item.style.display = 'grid'; // Show matching items
+          item.style.display = 'grid';
         } else {
-          item.style.display = 'none'; // Hide non-matching items
+          item.style.display = 'none';
         }
       });
     }

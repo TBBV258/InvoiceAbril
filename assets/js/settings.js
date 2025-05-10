@@ -1,14 +1,17 @@
 import langManager from './utils/language.js';
+import { settingsManager } from '../../services/settingsManager.js';
+import { languageManager } from '../../services/languageManager.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   await langManager.init();
+  await settingsManager.init();
 
   // Initialize variables
   let userSettings = {
     name: 'John Doe',
     email: 'john.doe@example.com',
-    phone: '+351 123 456 789',
-    language: 'pt'
+    phone: '+258 123 456 789',
+    language: 'pt-MZ'
   };
 
   let businessSettings = {
@@ -19,23 +22,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     email: 'contact@acmecorp.com'
   };
 
-  let appearanceSettings = {
-    logo: null,
-    theme: 'light',
-    accentColor: '#007ec7',
-    fontSize: 'medium',
-    sidebarPosition: 'left'
-  };
+  let appearanceSettings = settingsManager.getAppearanceSettings();
 
   let invoiceSettings = {
-    prefix: 'INV-',
+    prefix: 'FAT-',
     nextNumber: 1001,
     template: 'template1',
     color: '#007ec7',
-    currency: 'EUR',
-    taxRate: 23,
+    currency: 'MZN',
+    taxRate: 17,
     paymentTerms: 'net-30',
-    notes: 'Thank you for your business. Payment is due within 30 days.'
+    notes: 'Obrigado pela preferência. O pagamento deve ser efetuado no prazo de 30 dias.'
   };
 
   let notificationSettings = {
@@ -148,14 +145,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Language change handler
   languageSelect.addEventListener('change', async (e) => {
     const newLang = e.target.value;
-    await langManager.setLanguage(newLang);
-
-    // Save to user preferences in your backend
-    await saveUserPreferences({
-      language: newLang
-    });
-
-    showToast('Language updated successfully');
+    const locale = languageManager.locales[newLang];
+    
+    if (locale) {
+        // Update currency and format settings
+        defaultCurrencyInput.value = locale.currency;
+        await settingsManager.updateInvoiceSettings({
+            currency: locale.currency
+        });
+        
+        // Update language
+        userSettings.language = newLang;
+        await saveUserPreferences({
+            language: newLang
+        });
+        
+        showToast('success', 'Sucesso', 'Idioma atualizado com sucesso');
+    }
   });
 
   // Initialize Settings
@@ -345,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Appearance Settings
   function setupAppearanceSettings() {
     // Logo upload
-    companyLogoInput.addEventListener('change', function(e) {
+    companyLogoInput.addEventListener('change', async function(e) {
       const file = e.target.files[0];
       if (file) {
         if (file.size > 2 * 1024 * 1024) {
@@ -354,8 +360,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const reader = new FileReader();
-        reader.onload = function(event) {
-          logoPreviewImg.src = event.target.result;
+        reader.onload = async function(event) {
+          const logoData = event.target.result;
+          await settingsManager.updateAppearanceSettings({
+            logo: logoData
+          });
+          
+          logoPreviewImg.src = logoData;
           logoPreviewImg.style.display = 'block';
           logoPlaceholder.style.display = 'none';
         };
@@ -430,7 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Invoice Settings
   function setupInvoiceSettings() {
-    saveInvoiceSettingsBtn.addEventListener('click', function() {
+    saveInvoiceSettingsBtn.addEventListener('click', async function() {
       if (!invoicePrefixInput.value || !invoiceNextNumberInput.value) {
         showToast('error', 'Validation Error', 'Invoice prefix and next number are required.');
         return;
@@ -438,23 +449,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       showLoadingOverlay();
       
-      // Simulate API call
-      setTimeout(() => {
-        invoiceSettings.prefix = invoicePrefixInput.value;
-        invoiceSettings.nextNumber = parseInt(invoiceNextNumberInput.value);
-        invoiceSettings.template = invoiceTemplateInput.value;
-        invoiceSettings.color = invoiceColorInput.value;
-        invoiceSettings.currency = defaultCurrencyInput.value;
-        invoiceSettings.taxRate = parseFloat(defaultTaxRateInput.value);
-        invoiceSettings.paymentTerms = paymentTermsInput.value;
-        invoiceSettings.notes = invoiceNotesInput.value;
-        
-        hideLoadingOverlay();
-        showToast('success', 'Success', 'Invoice settings updated successfully.');
-        
-        // Save to localStorage
-        saveSettingsToStorage();
-      }, 1000);
+      // Update settings through the manager
+      await settingsManager.updateInvoiceSettings({
+        prefix: invoicePrefixInput.value,
+        nextNumber: parseInt(invoiceNextNumberInput.value),
+        template: invoiceTemplateInput.value,
+        color: invoiceColorInput.value,
+        currency: defaultCurrencyInput.value,
+        taxRate: parseFloat(defaultTaxRateInput.value),
+        paymentTerms: paymentTermsInput.value,
+        notes: invoiceNotesInput.value
+      });
+      
+      hideLoadingOverlay();
+      showToast('success', 'Success', 'Invoice settings updated successfully.');
     });
 
     resetInvoiceSettingsBtn.addEventListener('click', function() {

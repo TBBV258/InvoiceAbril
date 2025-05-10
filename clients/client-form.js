@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * Initialize the client form and its event listeners
  */
-function initClientForm() {
+async function initClientForm() {
   const clientForm = document.getElementById('client-form');
   const cancelBtn = document.getElementById('cancel-btn');
   const addNewClientBtn = document.getElementById('add-new-client-btn');
@@ -30,7 +30,7 @@ function initClientForm() {
   let currentClientId = null;
   
   // Handle form submission
-  clientForm.addEventListener('submit', (event) => {
+  clientForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     
     if (!validateForm(clientForm)) {
@@ -38,27 +38,70 @@ function initClientForm() {
       return;
     }
     
-    // Get form data
-    const formData = getFormData(clientForm);
-    
-    // If we have a client ID, we're editing
-    if (currentClientId) {
-      updateClient(currentClientId, formData);
-      window.appUtils.showToast('Client updated successfully', 'success');
-    } else {
-      // Otherwise, create a new client
-      addClient(formData);
-      window.appUtils.showToast('New client added successfully', 'success');
-    }
-    
-    // Reset form and UI state
-    resetForm(clientForm);
-    currentClientId = null;
-    formTitle.textContent = 'New Client';
-    
-    // Refresh the client list
-    if (typeof refreshClientList === 'function') {
-      refreshClientList();
+    try {
+      if (!window.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      // Only include fields that exist in your database schema
+      const formData = {
+        company_name: document.getElementById('company-name')?.value || '',
+        customer_tax_id: document.getElementById('customer-tax-id')?.value || '',
+        contact: document.getElementById('contact')?.value || '',
+        billing_address: document.getElementById('billing-address')?.value || '',
+        street_name: document.getElementById('street-name')?.value || '',
+        address_detail: document.getElementById('address-detail')?.value || '',
+        city: document.getElementById('city')?.value || '',
+        postal_code: document.getElementById('postal-code')?.value || null,  // Convert to number or null
+        province: document.getElementById('province')?.value || '',
+        country: document.getElementById('country')?.value || '',
+        ship_to_address: document.getElementById('ship-to-address')?.value || '',
+        building_number: document.getElementById('building-number')?.value || '',
+        telephone: document.getElementById('telephone')?.value || null,  // Convert to number or null
+        fax: document.getElementById('fax')?.value || '',
+        email: document.getElementById('email')?.value || '',
+        website: document.getElementById('website')?.value || '',
+        status: 'active', // Default status for new clients
+        client_type: document.querySelector('input[name="client-type"]:checked')?.value || 'business' // Default to business
+      };
+
+      // Convert string values to numbers where needed
+      if (formData.postal_code) {
+        formData.postal_code = parseInt(formData.postal_code) || null;
+      }
+      if (formData.telephone) {
+        formData.telephone = parseInt(formData.telephone.replace(/\D/g, '')) || null;
+      }
+
+      const { data, error } = currentClientId 
+        ? await window.supabase
+            .from('clients')
+            .update(formData)
+            .eq('customer_id', currentClientId)
+            .select()
+        : await window.supabase
+            .from('clients')
+            .insert([formData])
+            .select();
+
+      if (error) throw error;
+
+      window.appUtils.showToast(
+        currentClientId ? 'Client updated successfully' : 'Client added successfully',
+        'success'
+      );
+
+      resetForm(clientForm);
+      currentClientId = null;
+      if (formTitle) formTitle.textContent = 'New Client';
+      
+      if (typeof window.refreshClientList === 'function') {
+        window.refreshClientList();
+      }
+
+    } catch (error) {
+      console.error('Error saving client:', error);
+      window.appUtils.showToast('Error saving client: ' + error.message, 'error');
     }
   });
   
@@ -67,7 +110,7 @@ function initClientForm() {
     cancelBtn.addEventListener('click', () => {
       resetForm(clientForm);
       currentClientId = null;
-      formTitle.textContent = 'New Client';
+      if (formTitle) formTitle.textContent = 'New Client';
     });
   }
   
@@ -608,23 +651,12 @@ function populateForm(form, client) {
  * @param {HTMLFormElement} form - Form to reset
  */
 function resetForm(form) {
+  if (!form) return;
+  
+  // Basic form reset
   form.reset();
   
-  // Reset client type
-  form.querySelector('#individual-type').checked = true;
-  const companyNameField = form.querySelector('#company-name').closest('.form-group');
-  companyNameField.style.display = 'none';
-  
-  // Reset tax rate
-  form.querySelector('#other-vat-container').style.display = 'none';
-  
-  // Reset tabs
-  const firstTab = form.querySelector('.tab-btn');
-  if (firstTab) {
-    firstTab.click();
-  }
-  
-  // Remove any validation errors
+  // Clear validation states
   form.querySelectorAll('.error').forEach(el => {
     el.classList.remove('error');
   });

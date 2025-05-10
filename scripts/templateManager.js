@@ -1,32 +1,27 @@
+// Map template names to file paths 
+const TEMPLATE_PATHS = {
+    'classic': 'template01.html',
+    'modern': 'template02.html', 
+    'minimal': 'template03.html'
+};
+
 /**
  * Load a template by name
  * @param {string} templateName - The name of the template to load
  * @returns {Promise<string>} The template HTML content
  */
 function loadTemplate(templateName) {
-    // First try to load from server
-    return fetch(`/templates/${templateName}.html`)
+    const templateFile = TEMPLATE_PATHS[templateName] || 'template01.html'; // Default to classic
+    
+    // Load from templates directory
+    return fetch(`/templates/${templateFile}`)
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`Failed to load template: ${response.status} ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error('Template not found');
             return response.text();
         })
         .catch(error => {
             console.error('Error loading template:', error);
-            // Try to load from attached assets if server load fails
-            return fetch(`/attached_assets/invoice_template${templateName.substring(templateName.length - 2)}.html`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Failed to load template from assets: ${response.status} ${response.statusText}`);
-                    }
-                    return response.text();
-                })
-                .catch(error => {
-                    console.error('Error loading template from assets:', error);
-                    // Fall back to default template
-                    return fallbackTemplate();
-                });
+            return fallbackTemplate();
         });
 }
 
@@ -121,148 +116,152 @@ function fallbackTemplate() {
 }
 
 /**
+ * Load company logo from settings
+ * @returns {Promise<string>} The logo URL
+ */
+async function loadCompanyLogo() {
+    try {
+        const { data, error } = await supabase
+            .from('settings')
+            .select('company_logo')
+            .single();
+            
+        if (error) throw error;
+        return data.company_logo || '';
+    } catch (error) {
+        console.error('Error loading company logo:', error);
+        return '';
+    }
+}
+
+/**
  * Populate a template with invoice data
  * @param {Document} doc - The document to populate
  * @param {string} templateContent - The template HTML content
  * @param {Object} invoiceData - The invoice data to populate with
  */
-function populateTemplate(doc, templateContent, invoiceData) {
-    // Apply template color
-    const style = doc.createElement('style');
-    style.textContent = `:root { --primary-color: ${invoiceData.template.color}; }`;
-    doc.head.appendChild(style);
-    
-    // Company information
-    setElementText(doc, '#company-name, #display-company-name', invoiceData.company.name);
-    setElementText(doc, '#company-address, #display-company-address', invoiceData.company.address);
-    setElementText(doc, '#company-email, #display-company-email', invoiceData.company.email);
-    setElementText(doc, '#company-phone, #display-company-phone', invoiceData.company.phone);
-    setElementText(doc, '#company-nuit', invoiceData.company.nuit);
-    setElementText(doc, '#software-cert-no', invoiceData.company.softwareCertNo);
-    
-    // Client information
-    setElementText(doc, '#client-name, #display-client-name', invoiceData.client.name);
-    setElementText(doc, '#client-address, #display-address, #display-client-address', invoiceData.client.address);
-    setElementText(doc, '#client-nuit, #display-nuit, #display-clientTaxId', invoiceData.client.nuit);
-    setElementText(doc, '#client-email, #display-mail-address', invoiceData.client.email);
-    setElementText(doc, '#client-contact, #display-contact', invoiceData.client.contact);
-    
-    // Invoice details
-    const invoiceNumberPrefix = invoiceData.invoice.type || 'FT';
-    setElementText(doc, '#invoice-number, #display-invoice-number', `${invoiceNumberPrefix} ${invoiceData.invoice.number}`);
-    setElementText(doc, '#issue-date, #display-issue-date', formatDate(invoiceData.invoice.issueDate));
-    setElementText(doc, '#due-date, #display-due-date', formatDate(invoiceData.invoice.dueDate));
-    setElementText(doc, '#payment-terms, #display-payment-terms', invoiceData.invoice.paymentTerms);
-    setElementText(doc, '#project-name, #display-project-name', invoiceData.invoice.projectName);
-    setElementText(doc, '#notes, #display-notes', invoiceData.invoice.notes);
-    setElementText(doc, '#display-currency', invoiceData.invoice.currency);
-    
-    // Document status - add at the top of the invoice
-    const statusIndicator = document.createElement('div');
-    statusIndicator.style.textAlign = 'center';
-    statusIndicator.style.padding = '5px';
-    statusIndicator.style.marginBottom = '10px';
-    statusIndicator.style.fontWeight = 'bold';
-    
-    if (invoiceData.invoice.documentStatus === 'A') {
-        statusIndicator.style.backgroundColor = '#f44336';
-        statusIndicator.style.color = 'white';
-        statusIndicator.textContent = 'DOCUMENTO ANULADO';
-        doc.body.insertBefore(statusIndicator, doc.body.firstChild);
+async function populateTemplate(templateContent, invoiceData) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(templateContent, 'text/html');
+
+    // Convert string values to numbers for calculations
+    const subtotal = parseFloat(invoiceData.subtotal) || 0;
+    const totalVat = parseFloat(invoiceData.totalVat) || 0;
+    const discount = parseFloat(invoiceData.discount) || 0;
+    const total = parseFloat(invoiceData.total) || 0;
+
+    // Company Information 
+    setDataField(doc, 'display-company-name', invoiceData.company?.name);
+    setDataField(doc, 'display-company-address', invoiceData.company?.address);
+    setDataField(doc, 'display-company-email', invoiceData.company?.email);
+    setDataField(doc, 'display-company-phone', invoiceData.company?.phone);
+    setDataField(doc, 'display-company-nuit', invoiceData.company?.nuit);
+
+    // Invoice Details
+    setDataField(doc, 'display-invoice-number', invoiceData.invoiceNumber);
+    setDataField(doc, 'display-issue-date', invoiceData.issueDate);
+    setDataField(doc, 'display-due-date', invoiceData.dueDate);
+    setDataField(doc, 'display-project-name', invoiceData.projectName);
+
+    // Client Information
+    setDataField(doc, 'display-client-name', invoiceData.client?.name);
+    setDataField(doc, 'display-client-address', invoiceData.client?.address);
+    setDataField(doc, 'display-client-nuit', invoiceData.client?.nuit);
+    setDataField(doc, 'display-client-email', invoiceData.client?.email);
+    setDataField(doc, 'display-client-contact', invoiceData.client?.contact);
+
+    // Totals with proper number formatting
+    setDataField(doc, 'display-subtotal', `${invoiceData.currency} ${subtotal.toFixed(2)}`);
+    setDataField(doc, 'display-totalVat', `${invoiceData.currency} ${totalVat.toFixed(2)}`);
+    setDataField(doc, 'display-discount', `${invoiceData.currency} ${discount.toFixed(2)}`);
+    setDataField(doc, 'display-total', `${invoiceData.currency} ${total.toFixed(2)}`);
+
+    // Notes
+    setDataField(doc, 'display-notes', invoiceData.notes);
+
+    // Populate Items
+    const itemsContainer = doc.getElementById('display-items');
+    if (itemsContainer && invoiceData.items) {
+        itemsContainer.innerHTML = invoiceData.items.map(item => `
+            <tr>
+                <td>${item.description}</td>
+                <td>${item.quantity}</td>
+                <td>${invoiceData.currency} ${parseFloat(item.price).toFixed(2)}</td>
+                <td>${parseFloat(item.vat).toFixed(2)}%</td>
+                <td>${invoiceData.currency} ${parseFloat(item.total).toFixed(2)}</td>
+            </tr>
+        `).join('');
     }
-    
-    // Set up currency formatter
-    const formatter = new Intl.NumberFormat('pt-MZ', {
-        style: 'currency',
-        currency: invoiceData.invoice.currency
-    });
-    
-    // Format totals
-    const formattedSubtotal = formatter.format(invoiceData.invoice.totals.subtotal);
-    const formattedVat = formatter.format(invoiceData.invoice.totals.vat);
-    const formattedDiscount = formatter.format(invoiceData.invoice.totals.discount);
-    const formattedTotal = formatter.format(invoiceData.invoice.totals.total);
-    
-    setElementText(doc, '#subtotal, #display-subtotal', formattedSubtotal);
-    setElementText(doc, '#total-vat, #display-totalVat, #display-iva', formattedVat);
-    setElementText(doc, '#discount, #display-discount', formattedDiscount);
-    setElementText(doc, '#total, #display-total', formattedTotal);
-    
-    // Populate invoice items
-    populateInvoiceItems(doc, invoiceData);
-    
-    // Add company logo if available
-    if (invoiceData.template.logo) {
-        const logoContainers = doc.querySelectorAll('#company-logo');
-        logoContainers.forEach(container => {
-            container.innerHTML = `<img src="${invoiceData.template.logo}" alt="${invoiceData.company.name}" style="max-height: 60px; max-width: 200px;">`;
-        });
+
+    return doc.documentElement.outerHTML;
+}
+
+function setDataField(doc, id, value) {
+    const element = doc.getElementById(id);
+    if (element) {
+        element.textContent = value || '';
     }
-    
-    // Generate and add verification hash
-    const invoiceHash = generateInvoiceHash(invoiceData);
-    setElementText(doc, '#invoice-hash', invoiceHash);
 }
 
 /**
- * Populate invoice items in the template
- * @param {Document} doc - The document to populate
+ * Generate invoice HTML from data
  * @param {Object} invoiceData - The invoice data
+ * @returns {Promise<string>} The generated HTML
  */
-function populateInvoiceItems(doc, invoiceData) {
-    const { items, currency } = invoiceData.invoice;
-    
-    // Set up currency formatter
-    const formatter = new Intl.NumberFormat('pt-MZ', {
-        style: 'currency',
-        currency: currency
-    });
-    
-    // Try different item containers based on template
-    const itemsContainer = 
-        doc.querySelector('#invoice-items-body') || 
-        doc.querySelector('#display-items') || 
-        doc.querySelector('#invoice-items');
-    
-    if (!itemsContainer) {
-        console.error('Could not find items container in template');
-        return;
+async function generateInvoiceHTML(invoiceData) {
+    try {
+        // Get selected template
+        const selectedTemplate = localStorage.getItem('selectedInvoiceTemplate') || 'classic';
+        const templatePath = TEMPLATE_PATHS[selectedTemplate];
+
+        // Load template
+        const response = await fetch(`/templates/${templatePath}`);
+        if (!response.ok) throw new Error('Template not found');
+        
+        const templateContent = await response.text();
+        
+        // Populate template with data
+        return await populateTemplate(templateContent, invoiceData);
+    } catch (error) {
+        console.error('Error generating invoice HTML:', error);
+        throw error;
     }
-    
-    // Clear existing items
-    itemsContainer.innerHTML = '';
-    
-    // Add items
-    items.forEach(item => {
-        const row = doc.createElement('tr');
-        
-        // Format item values
-        const formattedPrice = formatter.format(item.price);
-        const formattedTotal = formatter.format(item.total);
-        
-        row.innerHTML = `
-            <td>${item.description}</td>
-            <td>${item.quantity}</td>
-            <td>${formattedPrice}</td>
-            <td>${item.vat}%</td>
-            <td>${formattedTotal}</td>
-        `;
-        
-        itemsContainer.appendChild(row);
-    });
 }
 
 /**
- * Set text content for elements matching a selector
- * @param {Document} doc - The document containing the elements
- * @param {string} selector - CSS selector for the elements
- * @param {string} text - The text to set
+ * Preview invoice in modal
+ * @param {Object} invoiceData - The invoice data to preview
+ * @returns {Promise<void>}
  */
-function setElementText(doc, selector, text) {
-    if (!text) return;
-    
-    const elements = doc.querySelectorAll(selector);
-    elements.forEach(element => {
-        element.textContent = text;
-    });
+async function previewInvoice(invoiceData) {
+    try {
+        // Load template based on selected template or default
+        const templateName = invoiceData.template?.name || 'template01';
+        const templateContent = await loadTemplate(templateName);
+        
+        // Create temporary container
+        const container = document.createElement('div');
+        container.innerHTML = templateContent;
+        
+        // Populate template with data
+        populateTemplate(container, templateContent, invoiceData);
+        
+        // Insert into preview container
+        const previewContainer = document.getElementById('invoicePreviewContent');
+        if (previewContainer) {
+            previewContainer.innerHTML = '';
+            previewContainer.appendChild(container);
+        }
+        
+    } catch (error) {
+        console.error('Error previewing invoice:', error);
+    }
 }
+
+// Export functions for external use
+window.invoiceTemplateManager = {
+    loadTemplate,
+    generateInvoiceHTML,
+    populateTemplate,
+    previewInvoice
+};

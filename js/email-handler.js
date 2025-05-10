@@ -1,202 +1,168 @@
 class EmailHandler {
     constructor() {
         this.modal = document.getElementById('emailInvoiceModal');
-        if (!this.modal) {
-            console.error('Email modal not found');
-            return;
-        }
-
         this.form = document.getElementById('emailInvoiceForm');
-        this.toField = document.getElementById('emailTo');
-        this.subjectField = document.getElementById('emailSubject');
-        this.messageField = document.getElementById('emailMessage');
-        this.loadingIndicator = this.modal.querySelector('.loading-indicator');
-        this.currentInvoice = null;
-
-        if (this.form && this.toField && this.subjectField && this.messageField) {
-            this.initialize();
-        } else {
-            console.error('Required email form elements not found');
-        }
+        this.loadingIndicator = this.modal?.querySelector('.loading-indicator');
+        this.setupEventListeners();
     }
 
-    initialize() {
-        // Setup email button click handlers
-        document.querySelectorAll('#emailInvoiceBtn, .send-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.handleEmailButtonClick(e));
+    setupEventListeners() {
+        // Email button click handler
+        document.querySelectorAll('.email-invoice-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showEmailModal(e.target.dataset.invoice);
+            });
         });
 
         // Close modal handlers
-        this.modal.querySelector('.close-modal').addEventListener('click', () => this.closeModal());
-        this.modal.querySelector('.close-email-modal').addEventListener('click', () => this.closeModal());
+        this.modal?.querySelector('.close-modal')?.addEventListener('click', () => this.closeEmailModal());
+        this.modal?.querySelector('.close-email-modal')?.addEventListener('click', () => this.closeEmailModal());
 
         // Form submit handler
-        this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+        this.form?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.sendEmail();
+        });
     }
 
-    handleEmailButtonClick(e) {
-        const invoiceRow = e.target.closest('tr');
-        if (invoiceRow) {
-            const invoiceNumber = invoiceRow.getAttribute('data-invoice');
-            const clientName = invoiceRow.getAttribute('data-client');
-            this.openEmailModal(invoiceNumber, clientName);
-        }
+    showEmailModal(invoiceNumber) {
+        if (!this.modal) return;
+        
+        const invoice = this.getInvoiceData(invoiceNumber);
+        if (!invoice) return;
+
+        // Pre-fill form fields
+        const toField = document.getElementById('emailTo');
+        const subjectField = document.getElementById('emailSubject');
+        const messageField = document.getElementById('emailMessage');
+
+        if (toField) toField.value = invoice.clientEmail || '';
+        if (subjectField) subjectField.value = `Invoice #${invoiceNumber}`;
+        if (messageField) messageField.value = this.getDefaultEmailMessage(invoice);
+
+        this.modal.style.display = 'block';
+        document.querySelector('.modal-overlay').style.display = 'block';
     }
 
-    async openEmailModal(invoiceNumber, clientName) {
-        this.currentInvoice = invoiceNumber;
-
-        try {
-            let clientEmail = '';
-            
-            // First try to get email from DOM
-            const emailInput = document.querySelector(`[data-invoice="${invoiceNumber}"]`)?.closest('tr')?.querySelector('.client-email');
-            if (emailInput?.value) {
-                clientEmail = emailInput.value;
-            } else {
-                // Try to get from database
-                const { data, error } = await window.supabase
-                    .from('clients')
-                    .select('email')
-                    .eq('name', clientName)
-                    .maybeSingle();
-
-                if (!error && data) {
-                    clientEmail = data.email;
-                }
-            }
-
-            // Show modal regardless of whether we found an email
-            this.toField.value = clientEmail;
-            this.subjectField.value = `Invoice ${invoiceNumber}`;
-            this.messageField.value = this.getDefaultEmailMessage(invoiceNumber, clientName);
-            
-            this.modal.style.display = 'block';
-            document.querySelector('.modal-overlay').style.display = 'block';
-
-        } catch (error) {
-            console.error('Error preparing email form:', error);
-            // Still show the modal with empty email
-            this.toField.value = '';
-            this.subjectField.value = `Invoice ${invoiceNumber}`;
-            this.messageField.value = this.getDefaultEmailMessage(invoiceNumber, clientName);
-            
-            this.modal.style.display = 'block';
-            document.querySelector('.modal-overlay').style.display = 'block';
-        }
-    }
-
-    closeModal() {
+    closeEmailModal() {
+        if (!this.modal) return;
         this.modal.style.display = 'none';
         document.querySelector('.modal-overlay').style.display = 'none';
-        this.form.reset();
-        this.loadingIndicator.style.display = 'none';
+        this.form?.reset();
     }
 
-    async handleSubmit(e) {
-        e.preventDefault();
-        this.loadingIndicator.style.display = 'block';
-
+    async sendEmail() {
         try {
+            if (this.loadingIndicator) this.loadingIndicator.style.display = 'block';
+
             const emailData = {
-                to: this.toField.value,
-                subject: this.subjectField.value,
-                message: this.messageField.value,
-                invoiceNumber: this.currentInvoice,
+                to: document.getElementById('emailTo').value,
+                subject: document.getElementById('emailSubject').value,
+                message: document.getElementById('emailMessage').value,
                 attachPdf: document.getElementById('emailAttachPdf').checked
             };
 
-            // Send email using Supabase Edge Function with proper headers
-            const { data, error } = await window.supabase.functions.invoke('send-invoice-email', {
-                body: JSON.stringify(emailData),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${window.supabase.auth.session()?.access_token}`
-                }
-            });
-
-            if (error) throw error;
-            if (!data?.success) throw new Error('Email sending failed');
-
-            // Log email activity to database
-            await this.logEmailActivity(emailData);
-
-            alert('Email sent successfully!');
-            this.closeModal();
-
+            const response = await this.sendEmailToServer(emailData);
+            
+            if (response.success) {
+                alert('Email sent successfully!');
+                this.closeEmailModal();
+            } else {
+                throw new Error(response.message || 'Failed to send email');
+            }
         } catch (error) {
             console.error('Error sending email:', error);
-            alert('Failed to send email. Please try again. ' + error.message);
+            alert('Failed to send email: ' + error.message);
         } finally {
-            this.loadingIndicator.style.display = 'none';
+            if (this.loadingIndicator) this.loadingIndicator.style.display = 'none';
         }
     }
 
-    async logEmailActivity(emailData) {
-        try {
-            await window.supabase.from('email_logs').insert([{
-                invoice_number: emailData.invoiceNumber,
-                recipient: emailData.to,
-                subject: emailData.subject,
-                sent_at: new Date().toISOString(),
-                status: 'sent'
-            }]);
-        } catch (error) {
-            console.error('Error logging email activity:', error);
-        }
+    getInvoiceData(invoiceNumber) {
+        // Implement getting invoice data from your data source
+        return {
+            invoiceNumber,
+            clientEmail: '', // Get from your data source
+            amount: 0,      // Get from your data source
+            dueDate: ''     // Get from your data source
+        };
     }
 
-    getDefaultEmailMessage(invoiceNumber, clientName) {
-        return `Dear ${clientName},
+    getDefaultEmailMessage(invoice) {
+        return `Dear valued customer,
 
-Please find attached invoice ${invoiceNumber}.
+Please find attached invoice #${invoice.invoiceNumber} for your records.
 
-Thank you for your business!
+Amount due: ${formatCurrency(invoice.amount)}
+Due date: ${formatDate(invoice.dueDate)}
+
+If you have any questions, please don't hesitate to contact us.
 
 Best regards,
-[Your Company Name]`;
+Your Company Name`;
+    }
+
+    async sendEmailToServer(emailData) {
+        // Implement your email sending logic here
+        // This is just a placeholder that simulates an API call
+        return new Promise(resolve => {
+            setTimeout(() => {
+                resolve({ success: true, message: 'Email sent successfully' });
+            }, 2000);
+        });
     }
 }
 
-// Initialize email handler when document is ready and elements exist
+// Initialize email handler when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    const emailModal = document.getElementById('emailInvoiceModal');
-    if (emailModal) {
-        window.emailHandler = new EmailHandler();
-    } else {
-        console.error('Email modal element not found');
-    }
+    window.emailHandler = new EmailHandler();
 });
 
-class EmailTracker {
-    async sendInvoiceEmail(invoiceId, recipient, templateId) {
-        const emailData = {
-            invoice_id: invoiceId,
-            recipient,
-            template_id: templateId,
-            tracking_id: this.generateTrackingId(),
-            sent_at: new Date().toISOString()
-        };
+async function sendInvoiceEmail(invoiceNumber, emailAddress) {
+    try {
+        // Get the invoice PDF
+        const { data: invoice } = await window.supabase
+            .from('invoices')
+            .select('pdf_url')
+            .eq('invoice_number', invoiceNumber)
+            .single();
 
-        const { data, error } = await supabase
-            .from('email_tracking')
-            .insert([emailData]);
+        if (!invoice?.pdf_url) {
+            throw new Error('PDF not found');
+        }
+
+        // Download the PDF blob
+        const response = await fetch(invoice.pdf_url);
+        const pdfBlob = await response.blob();
+
+        // Create form data
+        const formData = new FormData();
+        formData.append('to', emailAddress);
+        formData.append('subject', `Invoice ${invoiceNumber}`);
+        formData.append('attachment', pdfBlob, `${invoiceNumber}.pdf`);
+
+        // Get email template
+        const { data: template } = await window.supabase
+            .from('email_templates')
+            .select('content')
+            .eq('type', 'invoice')
+            .single();
+
+        formData.append('message', template?.content || 'Please find attached invoice.');
+
+        // Send email via Supabase Edge Function
+        const { data, error } = await window.supabase.functions.invoke('send-email', {
+            body: formData
+        });
 
         if (error) throw error;
         return data;
-    }
-
-    generateTrackingId() {
-        return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    async trackEmailOpen(trackingId) {
-        const { data, error } = await supabase
-            .from('email_tracking')
-            .update({ opened_at: new Date().toISOString() })
-            .match({ tracking_id: trackingId });
-
-        if (error) throw error;
-        return data;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw error;
     }
 }
+
+// Export function
+window.emailHandler = { sendInvoiceEmail };

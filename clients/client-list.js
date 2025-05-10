@@ -3,38 +3,50 @@
  * Manages the client list functionality
  */
 
-// Wait for DOM to be fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialize client list components
-  initClientList();
-  initSearchAndFilters();
-  initViewToggle();
-  initDeleteModal();
-  initPagination();
-  
-  // Call refresh to load initial data
-  refreshClientList();
-});
+// Make initialization function globally available
+window.initClientList = async () => {
+  try {
+    await initSearchAndFilters();
+    await initViewToggle();
+    await initDeleteModal();
+    await initPagination();
+    await refreshClientList();
+  } catch (error) {
+    console.error('Error initializing client list:', error);
+  }
+};
 
 // Global variables for list state
 let currentPage = 1;
 const pageSize = 10;
 let filteredClients = [];
+let allClients = [];
 let searchQuery = '';
 let statusFilter = 'all';
 let typeFilter = 'all';
 let viewMode = 'grid';
 
 /**
- * Initialize the client list
+ * Fetch clients from Supabase
  */
-function initClientList() {
-  // Check if client list container exists
-  const clientListContainer = document.getElementById('client-list');
-  if (!clientListContainer) return;
-  
-  // Setup sample data if localStorage is empty
-  setupSampleData();
+async function fetchClientsFromSupabase() {
+  try {
+    if (!window.supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    const { data, error } = await window.supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    console.log('Fetched clients:', data);
+    return data || [];
+  } catch (err) {
+    console.error('Error fetching clients:', err);
+    return [];
+  }
 }
 
 /**
@@ -189,81 +201,51 @@ function initPagination() {
 }
 
 /**
- * Refresh the client list with current filters and pagination
+ * Update pagination controls
+ * @param {number} currentPage - Current page number
+ * @param {number} totalPages - Total number of pages
  */
-function refreshClientList() {
-  const clientList = document.getElementById('client-list');
+function updatePaginationControls(currentPage, totalPages) {
   const pageInfo = document.getElementById('page-info');
   const prevPageBtn = document.getElementById('prev-page');
   const nextPageBtn = document.getElementById('next-page');
   
+  if (!pageInfo || !prevPageBtn || !nextPageBtn) return;
+  
+  pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+  prevPageBtn.disabled = currentPage <= 1;
+  nextPageBtn.disabled = currentPage >= totalPages;
+}
+
+/**
+ * Show error message in the client list container
+ * @param {string} message - Error message to display
+ */
+function showErrorMessage(message) {
+  const clientList = document.getElementById('client-list');
   if (!clientList) return;
   
-  // Show loading state
   clientList.innerHTML = `
-    <div class="loading-indicator">
-      <i class="fas fa-spinner fa-spin"></i>
-      <span>Loading clients...</span>
+    <div class="error-state">
+      <i class="fas fa-exclamation-circle"></i>
+      <h3>Error</h3>
+      <p>${message}</p>
     </div>
   `;
+}
+
+/**
+ * Render client list
+ * @param {Array} clients - Array of clients to render
+ */
+function renderClientList(clients) {
+  const clientList = document.getElementById('client-list');
+  if (!clientList) return;
   
-  // Get all clients
-  const allClients = JSON.parse(localStorage.getItem('clients') || '[]');
-  
-  // Apply filters
-  filteredClients = allClients.filter(client => {
-    // Status filter
-    if (statusFilter !== 'all' && client.status !== statusFilter) {
-      return false;
-    }
-    
-    // Type filter
-    if (typeFilter !== 'all' && client.clientType !== typeFilter) {
-      return false;
-    }
-    
-    // Search filter
-    if (searchQuery) {
-      const searchFields = [
-        client.firstName,
-        client.lastName,
-        client.companyName,
-        client.displayName,
-        client.email
-      ].filter(Boolean).map(field => field.toLowerCase());
-      
-      return searchFields.some(field => field.includes(searchQuery));
-    }
-    
-    return true;
-  });
-  
-  // Calculate pagination
-  const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
-  currentPage = Math.min(currentPage, totalPages);
-  
-  // Update pagination controls
-  if (pageInfo) {
-    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-  }
-  
-  if (prevPageBtn) {
-    prevPageBtn.disabled = currentPage <= 1;
-  }
-  
-  if (nextPageBtn) {
-    nextPageBtn.disabled = currentPage >= totalPages;
-  }
-  
-  // Get current page of clients
-  const startIndex = (currentPage - 1) * pageSize;
-  const currentPageClients = filteredClients.slice(startIndex, startIndex + pageSize);
-  
-  // Clear loading state
+  // Clear existing content
   clientList.innerHTML = '';
   
-  // Show empty state if no clients
-  if (currentPageClients.length === 0) {
+  if (!clients || clients.length === 0) {
     clientList.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-users"></i>
@@ -274,276 +256,142 @@ function refreshClientList() {
     return;
   }
   
-  // Render clients based on view mode
-  currentPageClients.forEach(client => {
+  // Render each client
+  clients.forEach(client => {
     const clientElement = document.createElement('div');
     clientElement.className = 'client-item';
-    
-    if (viewMode === 'grid') {
-      clientElement.innerHTML = `
-        <div class="client-info">
-          <span class="client-type ${client.clientType}">${client.clientType === 'business' ? 'Business' : 'Individual'}</span>
-          <h4>${client.displayName || `${client.firstName} ${client.lastName}`}</h4>
-          <p>${client.email || ''}</p>
-          ${client.companyName ? `<p>${client.companyName}</p>` : ''}
-          <div class="client-contact">
-            ${client.workPhone ? `<p><i class="fas fa-phone"></i> ${client.workPhone}</p>` : ''}
-            ${client.mobile ? `<p><i class="fas fa-mobile-alt"></i> ${client.mobile}</p>` : ''}
-          </div>
-          <span class="status-btn ${client.status}">${client.status === 'active' ? 'Active' : 'Inactive'}</span>
+    clientElement.innerHTML = `
+      <div class="client-info">
+        <div class="client-header">
+          <span class="status-badge ${client.status || 'active'}">${client.status || 'Active'}</span>
+          <span class="client-type-badge ${client.client_type}">${client.client_type === 'business' ? 'Business' : 'Individual'}</span>
         </div>
-        <div class="client-actions">
-          <button class="edit-btn" onclick="editClient(${client.id})" aria-label="Edit client">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="delete-btn" onclick="deleteClient(${client.id})" aria-label="Delete client">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      `;
-    } else {
-      clientElement.innerHTML = `
-        <div class="client-info">
-          <span class="client-type ${client.clientType}">${client.clientType === 'business' ? 'Business' : 'Individual'}</span>
-          <h4>${client.displayName || `${client.firstName} ${client.lastName}`}</h4>
-          <div class="client-details">
-            <p>${client.email || ''}</p>
-            ${client.workPhone ? `<span><i class="fas fa-phone"></i> ${client.workPhone}</span>` : ''}
-          </div>
-        </div>
-        <div class="client-actions">
-          <span class="status-btn ${client.status}">${client.status === 'active' ? 'Active' : 'Inactive'}</span>
-          <button class="edit-btn" onclick="editClient(${client.id})" aria-label="Edit client">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="delete-btn" onclick="deleteClient(${client.id})" aria-label="Delete client">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      `;
-    }
-    
+        <h4>${client.company_name || 'N/A'}</h4>
+        <p><strong>NIF/NUIT:</strong> ${client.customer_tax_id || 'N/A'}</p>
+        <p><strong>Contact:</strong> ${client.contact || 'N/A'}</p>
+        <p><strong>Email:</strong> ${client.email || 'N/A'}</p>
+        <p><strong>Phone:</strong> ${client.telephone || 'N/A'}</p>
+        <p><strong>Address:</strong> ${client.billing_address || 'N/A'}</p>
+      </div>
+      <div class="client-actions">
+        <button class="status-toggle-btn" onclick="toggleClientStatus('${client.customer_id}', '${client.status || 'active'}')" 
+                title="Toggle client status">
+          <i class="fas ${client.status === 'inactive' ? 'fa-toggle-off' : 'fa-toggle-on'}"></i>
+          ${client.status === 'inactive' ? 'Activate' : 'Deactivate'}
+        </button>
+        <button class="edit-btn" onclick="editClient('${client.customer_id}')" title="Edit client">
+          <i class="fas fa-edit"></i>
+        </button>
+      </div>
+    `;
     clientList.appendChild(clientElement);
   });
 }
 
 /**
- * Remove a client by ID
- * @param {number} clientId - ID of the client to remove
- * @returns {boolean} - Success status
+ * Toggle client status between active and inactive
+ * @param {string} clientId - ID of the client
+ * @param {string} currentStatus - Current status of the client
  */
-function removeClient(clientId) {
-  // Get all clients
-  const clients = JSON.parse(localStorage.getItem('clients') || '[]');
-  
-  // Find client index
-  const index = clients.findIndex(client => client.id === clientId);
-  
-  if (index !== -1) {
-    // Remove client
-    clients.splice(index, 1);
+async function toggleClientStatus(clientId, currentStatus) {
+  try {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
     
-    // Save back to localStorage
-    localStorage.setItem('clients', JSON.stringify(clients));
-    
-    return true;
+    const { error } = await window.supabase
+      .from('clients')
+      .update({ status: newStatus })
+      .eq('customer_id', clientId);
+
+    if (error) throw error;
+
+    window.appUtils.showToast(`Client ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`, 'success');
+    refreshClientList();
+  } catch (error) {
+    console.error('Error toggling client status:', error);
+    window.appUtils.showToast('Error updating client status', 'error');
   }
-  
-  return false;
 }
 
+// Add this to the window object for global access
+window.toggleClientStatus = toggleClientStatus;
+
 /**
- * Setup sample data if no clients exist
+ * Refresh the client list with current filters and pagination
  */
-function setupSampleData() {
-  // Check if sample data already exists
-  const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
-  
-  if (existingClients.length === 0) {
-    // Create sample clients
-    const sampleClients = [
-      {
-        id: 1,
-        clientType: 'business',
-        salutation: 'Mr.',
-        firstName: 'John',
-        lastName: 'Smith',
-        companyName: 'Acme Corporation',
-        displayName: 'Acme Corporation',
-        email: 'john.smith@acme.com',
-        workPhone: '555-123-4567',
-        mobile: '555-987-6543',
-        currency: 'USD',
-        taxRate: 'standard',
-        paymentTerms: 'net-30',
-        priceList: 'standard',
-        enablePortal: true,
-        portalLanguage: 'en',
-        status: 'active',
-        createdAt: '2023-07-15T10:30:00Z',
-        billingAddress: {
-          attention: 'Accounts Payable',
-          country: 'us',
-          street1: '123 Business Ave',
-          street2: 'Suite 500',
-          city: 'New York',
-          state: 'NY',
-          zip: '10001',
-          phone: '555-111-2222'
-        },
-        shippingAddress: {
-          attention: 'Receiving Dept',
-          country: 'us',
-          street1: '123 Business Ave',
-          street2: 'Loading Dock B',
-          city: 'New York',
-          state: 'NY',
-          zip: '10001',
-          phone: '555-333-4444'
-        }
-      },
-      {
-        id: 2,
-        clientType: 'individual',
-        salutation: 'Ms.',
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        displayName: 'Sarah Johnson',
-        email: 'sarah.j@example.com',
-        mobile: '555-222-3333',
-        currency: 'USD',
-        taxRate: 'exempt',
-        paymentTerms: 'due-receipt',
-        enablePortal: false,
-        status: 'active',
-        createdAt: '2023-08-20T14:15:00Z',
-        billingAddress: {
-          country: 'us',
-          street1: '456 Residential St',
-          city: 'Los Angeles',
-          state: 'CA',
-          zip: '90001'
-        },
-        shippingAddress: {
-          country: 'us',
-          street1: '456 Residential St',
-          city: 'Los Angeles',
-          state: 'CA',
-          zip: '90001'
-        }
-      },
-      {
-        id: 3,
-        clientType: 'business',
-        salutation: 'Dr.',
-        firstName: 'Robert',
-        lastName: 'Chen',
-        companyName: 'TechInnovate Solutions',
-        displayName: 'TechInnovate Solutions',
-        email: 'robert@techinnovate.com',
-        workPhone: '555-444-5555',
-        currency: 'USD',
-        taxRate: 'standard',
-        paymentTerms: 'net-15',
-        priceList: 'vip',
-        enablePortal: true,
-        portalLanguage: 'en',
-        status: 'inactive',
-        createdAt: '2023-06-05T09:45:00Z',
-        billingAddress: {
-          attention: 'Finance Department',
-          country: 'us',
-          street1: '789 Tech Park',
-          city: 'San Francisco',
-          state: 'CA',
-          zip: '94105',
-          phone: '555-666-7777'
-        },
-        shippingAddress: {
-          attention: 'Warehouse',
-          country: 'us',
-          street1: '789 Tech Park',
-          city: 'San Francisco',
-          state: 'CA',
-          zip: '94105',
-          phone: '555-666-7777'
-        }
-      },
-      {
-        id: 4,
-        clientType: 'individual',
-        salutation: 'Mrs.',
-        firstName: 'Emily',
-        lastName: 'Williams',
-        displayName: 'Emily Williams',
-        email: 'emily.w@example.com',
-        workPhone: '555-888-9999',
-        mobile: '555-777-8888',
-        currency: 'USD',
-        taxRate: 'reduced',
-        paymentTerms: 'net-30',
-        enablePortal: false,
-        status: 'active',
-        createdAt: '2023-09-12T11:20:00Z',
-        billingAddress: {
-          country: 'us',
-          street1: '321 Main St',
-          city: 'Chicago',
-          state: 'IL',
-          zip: '60601'
-        },
-        shippingAddress: {
-          country: 'us',
-          street1: '321 Main St',
-          city: 'Chicago',
-          state: 'IL',
-          zip: '60601'
-        }
-      },
-      {
-        id: 5,
-        clientType: 'business',
-        salutation: 'Mr.',
-        firstName: 'David',
-        lastName: 'Lee',
-        companyName: 'Global Logistics Inc.',
-        displayName: 'Global Logistics Inc.',
-        email: 'david.lee@globallogistics.com',
-        workPhone: '555-333-2222',
-        currency: 'USD',
-        taxRate: 'standard',
-        paymentTerms: 'net-60',
-        priceList: 'wholesale',
-        enablePortal: true,
-        portalLanguage: 'en',
-        status: 'active',
-        createdAt: '2023-05-18T08:10:00Z',
-        billingAddress: {
-          attention: 'Accounts Department',
-          country: 'us',
-          street1: '555 Shipping Way',
-          street2: 'Floor 3',
-          city: 'Miami',
-          state: 'FL',
-          zip: '33101',
-          phone: '555-111-3333'
-        },
-        shippingAddress: {
-          attention: 'Distribution Center',
-          country: 'us',
-          street1: '999 Harbor Dr',
-          city: 'Miami',
-          state: 'FL',
-          zip: '33101',
-          phone: '555-222-4444'
-        }
+async function refreshClientList() {
+  try {
+    const clientList = document.getElementById('client-list');
+    if (!clientList) return;
+
+    // Show loading state
+    clientList.innerHTML = `
+      <div class="loading-indicator">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>Loading clients...</span>
+      </div>
+    `;
+
+    // Fetch fresh data
+    allClients = await fetchClientsFromSupabase();
+
+    // Apply filters
+    filteredClients = allClients.filter(client => {
+      if (statusFilter !== 'all' && client.status !== statusFilter) {
+        return false;
       }
-    ];
+      if (typeFilter !== 'all' && client.client_type !== typeFilter) {
+        return false;
+      }
+      if (searchQuery) {
+        const searchFields = [
+          client.company_name,
+          client.contact,
+          client.email,
+          client.customer_tax_id,
+          client.billing_address,
+          client.city
+        ].filter(Boolean).map(field => field.toLowerCase());
+        return searchFields.some(field => field.includes(searchQuery));
+      }
+      return true;
+    });
+
+    // Update pagination
+    const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
+    currentPage = Math.min(currentPage, totalPages);
     
-    // Save sample clients to localStorage
-    localStorage.setItem('clients', JSON.stringify(sampleClients));
+    // Update pagination controls
+    updatePaginationControls(currentPage, totalPages);
+
+    // Get current page of clients
+    const startIndex = (currentPage - 1) * pageSize;
+    const currentPageClients = filteredClients.slice(startIndex, startIndex + pageSize);
+
+    // Render clients
+    renderClientList(currentPageClients);
+
+  } catch (error) {
+    console.error('Error refreshing client list:', error);
+    showErrorMessage('Failed to load clients. Please try again later.');
   }
 }
 
 // Make refresh function globally available
 window.refreshClientList = refreshClientList;
+
+// Update the deleteClient function
+async function deleteClient(clientId) {
+  try {
+    const { error } = await window.supabase
+      .from('clients')
+      .delete()
+      .eq('customer_id', clientId);
+
+    if (error) throw error;
+    window.appUtils.showToast('Client deleted successfully', 'success');
+    refreshClientList();
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    window.appUtils.showToast('Error deleting client: ' + error.message, 'error');
+  }
+}

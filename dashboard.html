@@ -63,43 +63,43 @@
             </div>
             
             <div class="nav-menu">
-                <a href="dashboard.html" class="nav-item">
+                <a href="dashboard.html" class="nav-item active">
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
                 
                 <div class="nav-section">
-                    <h3>Invoicing</h3>
+                    <h3>Facturação</h3>
                 </div>
-                <a href="invoices.html" class="nav-item active">
+                <a href="invoices.html" class="nav-item">
                     <i class="fas fa-file-invoice-dollar"></i>
-                    <span>Invoices</span>
+                    <span>Facturas</span>
                 </a>
 
                 <a href="clients/clients.html" class="nav-item">
                     <i class="fas fa-users"></i>
-                    <span>Clients</span>
+                    <span>Clientes</span>
                 </a>
 
                 <a href="products.html" class="nav-item">
                     <i class="fas fa-shopping-cart"></i>
-                    <span>Products</span>
+                    <span>Produtos</span>
                 </a>
-                
+
                 <div class="nav-section">
-                    <h3>Commercial</h3>
+                    <h3>Commercio</h3>
                 </div>
                 <a href="#" class="nav-item">
                     <i class="fas fa-boxes"></i>
-                    <span>Stock</span>
+                    <span>Estoque</span>
                 </a>
                 <a href="#" class="nav-item">
                     <i class="fas fa-truck"></i>
-                    <span>Suppliers</span>
+                    <span>Fornecedores</span>
                 </a>
                 <a href="#" class="nav-item">
                     <i class="fas fa-exchange-alt"></i>
-                    <span>Movements</span>
+                    <span>Movimentos</span>
                 </a>
                 <a href="#" class="nav-item">
                     <i class="fas fa-money-bill-wave"></i>
@@ -167,10 +167,10 @@
                 <div class="user-menu">
                     <div class="language-toggle">
                         <button id="lang-en" onclick="toggleLanguage('en'); setActiveLanguage('en')">
-                            <img src="path/to/uk-flag.png" alt="English" style="width: 20px; height: 15px;">
+                            <img src="assets/uk-flag.svg" alt="English" style="width: 20px; height: 15px;">
                         </button>
                         <button id="lang-pt" onclick="toggleLanguage('pt'); setActiveLanguage('pt')">
-                            <img src="path/to/mozambique-flag.png" alt="Português" style="width: 20px; height: 15px;">
+                            <img src="assets/mz-flag.svg" alt="Português" style="width: 20px; height: 15px;">
                         </button>
                     </div>
                     <div class="notification-bell">
@@ -182,12 +182,12 @@
                         <div class="avatar">
                             <i class="fas fa-user"></i>
                         </div>
-                        <span>John Doe</span>
+                        <span id="user-displayname">John Doe</span>
                         <div class="dropdown-menu">
                             <a href="#">
                                 <i class="fas fa-user-circle"></i> My Profile
                             </a>
-                            <a href="#">
+                            <a href="settings.html">
                                 <i class="fas fa-cog"></i> Settings
                             </a>
                             <a href="#">
@@ -266,12 +266,12 @@
             <div class="recent-transactions">
                 <h3>
                     Recent Invoices
-                    <a href="#" class="view-all" data-lang="viewAllInvoices" data-en="View All" data-pt="Ver Todos">View All</a>
+                    <a href="invoices.html" class="view-all" data-lang="viewAllInvoices" data-en="View All" data-pt="Ver Todos">View All</a>
                 </h3>
                 <div class="table-filters">
                     <div class="filter-group">
                         <label for="statusFilter" data-lang="statusLabel" data-en="Status:" data-pt="Estado:">Status:</label>
-                        <select id="statusFilter" class="filter-select" data-lang="statusFilter" data-en="statusFilter" data-pt="statusFilter">
+                        <select id="statusFilter" class="filter-select" onchange="filterInvoices()">
                             <option value="all" data-lang="allStatuses" data-en="All Statuses" data-pt="Todos os Status">All Statuses</option>
                             <option value="paid" data-lang="paid" data-en="Paid" data-pt="Pago">Paid</option>
                             <option value="pending" data-lang="pending" data-en="Pending" data-pt="Pendente">Pending</option>
@@ -280,7 +280,7 @@
                     </div>
                     <div class="filter-group">
                         <label for="dateFilter" data-lang="dateRangeLabel" data-en="Date Range:" data-pt="Período:">Date Range:</label>
-                        <select id="dateFilter" class="filter-select">
+                        <select id="dateFilter" class="filter-select" onchange="filterInvoices()">
                             <option value="all" data-lang="allTime" data-en="All Time" data-pt="Todo o Tempo">All Time</option>
                             <option value="today" data-lang="today" data-en="Today" data-pt="Hoje">Today</option>
                             <option value="week" data-lang="thisWeek" data-en="This Week" data-pt="Esta Semana">This Week</option>
@@ -290,91 +290,172 @@
                     </div>
                     <div class="filter-group">
                         <label for="amountFilter" data-lang="amountLabel" data-en="Amount:" data-pt="Valor:">Amount:</label>
-                        <select id="amountFilter" class="filter-select">
-                            <option value="all" data-lang="allAmounts" data-en="All Amounts" data-pt="Todos os Valores">All Amounts</option>
-                            <option value="under1000" data-lang="under1000" data-en="Under $1,000" data-pt="Menos de $1.000">Under $1,000</option>
-                            <option value="1000to5000" data-lang="1000to5000" data-en="$1,000 - $5,000" data-pt="$1.000 - $5.000">$1,000 - $5,000</option>
-                            <option value="over5000" data-lang="over5000" data-en="Over $5,000" data-pt="Mais de $5.000">Over $5,000</option>
+                        <select id="amountFilter" class="filter-select" onchange="filterInvoices()">
+                            <option value="all">All Amounts</option>
+                            <option value="under1000">Under MZN 1,000</option>
+                            <option value="1000to5000">MZN 1,000 - MZN 5,000</option>
+                            <option value="over5000">Over MZN 5,000</option>
                         </select>
                     </div>
                     <div class="filter-group search-filter">
-                        <input type="text" id="searchInvoices" placeholder="Search invoices..." data-lang="searchInvoicesPlaceholder" data-en="Search invoices..." data-pt="Pesquisar faturas...">
-                        <button id="clearFilters" class="clear-filters-btn" data-lang="clearFilters" data-en="Clear Filters" data-pt="Limpar Filtros">Clear Filters</button>
+                        <input type="text" id="searchInvoices" placeholder="Search invoices..." 
+                               oninput="filterInvoices()" 
+                               data-lang="searchInvoicesPlaceholder" 
+                               data-en="Search invoices..." 
+                               data-pt="Pesquisar faturas...">
                     </div>
                 </div>
-                <table id="invoicesTable">
-                    <thead>
-                        <tr>
-                            <th>Invoice # <span class="sort-icon" data-sort="invoice"><i class="fas fa-sort"></i></span></th>
-                            <th>Client <span class="sort-icon" data-sort="client"><i class="fas fa-sort"></i></span></th>
-                            <th>Date <span class="sort-icon" data-sort="date"><i class="fas fa-sort"></i></span></th>
-                            <th>Amount <span class="sort-icon" data-sort="amount"><i class="fas fa-sort"></i></span></th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr data-invoice="INV-2025-001" data-client="Acme Corporation" data-date="2025-03-22" data-amount="3450.00" data-status="paid">
-                            <td>INV-2025-001</td>
-                            <td>Acme Corporation</td>
-                            <td>Mar 22, 2025</td>
-                            <td>$3,450.00</td>
-                            <td><span class="status paid">Paid</span></td>
-                            <td>
-                                <a href="#" title="View"><i class="fas fa-eye"></i></a>
-                                <a href="#" title="Edit"><i class="fas fa-edit"></i></a>
-                            </td>
-                        </tr>
-                        <tr data-invoice="INV-2025-002" data-client="Globex Industries" data-date="2025-03-20" data-amount="1875.50" data-status="pending">
-                            <td>INV-2025-002</td>
-                            <td>Globex Industries</td>
-                            <td>Mar 20, 2025</td>
-                            <td>$1,875.50</td>
-                            <td><span class="status pending">Pending</span></td>
-                            <td>
-                                <a href="#" title="View"><i class="fas fa-eye"></i></a>
-                                <a href="#" title="Edit"><i class="fas fa-edit"></i></a>
-                            </td>
-                        </tr>
-                        <tr data-invoice="INV-2025-003" data-client="Sirius Cybernetics" data-date="2025-03-18" data-amount="5240.00" data-status="overdue">
-                            <td>INV-2025-003</td>
-                            <td>Sirius Cybernetics</td>
-                            <td>Mar 18, 2025</td>
-                            <td>$5,240.00</td>
-                            <td><span class="status overdue">Overdue</span></td>
-                            <td>
-                                <a href="#" title="View"><i class="fas fa-eye"></i></a>
-                                <a href="#" title="Edit"><i class="fas fa-edit"></i></a>
-                            </td>
-                        </tr>
-                        <tr data-invoice="INV-2025-004" data-client="Wayne Enterprises" data-date="2025-03-15" data-amount="2780.25" data-status="paid">
-                            <td>INV-2025-004</td>
-                            <td>Wayne Enterprises</td>
-                            <td>Mar 15, 2025</td>
-                            <td>$2,780.25</td>
-                            <td><span class="status paid">Paid</span></td>
-                            <td>
-                                <a href="#" title="View"><i class="fas fa-eye"></i></a>
-                                <a href="#" title="Edit"><i class="fas fa-edit"></i></a>
-                            </td>
-                        </tr>
-                        <tr data-invoice="INV-2025-005" data-client="Stark Industries" data-date="2025-03-12" data-amount="8750.00" data-status="pending">
-                            <td>INV-2025-005</td>
-                            <td>Stark Industries</td>
-                            <td>Mar 12, 2025</td>
-                            <td>$8,750.00</td>
-                            <td><span class="status pending">Pending</span></td>
-                            <td>
-                                <a href="#" title="View"><i class="fas fa-eye"></i></a>
-                                <a href="#" title="Edit"><i class="fas fa-edit"></i></a>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                
+                <div class="table-responsive">
+                    <table id="invoicesTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortInvoices('invoice_number')">Invoice # <i class="fas fa-sort"></i></th>
+                                <th onclick="sortInvoices('client_name')">Client <i class="fas fa-sort"></i></th>
+                                <th onclick="sortInvoices('issue_date')">Date <i class="fas fa-sort"></i></th>
+                                <th onclick="sortInvoices('total')">Amount <i class="fas fa-sort"></i></th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoicesTableBody">
+                            <!-- Data will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
                 <div id="noResultsMessage" class="no-results" style="display: none;">
-                    <p data-lang="noInvoicesFound" data-en="No invoices match your filter criteria. <a href='#' id='resetFiltersLink'>Reset filters</a>" data-pt="Nenhuma fatura corresponde aos seus critérios de filtro. <a href='#' id='resetFiltersLink'>Redefinir filtros</a>">No invoices match your filter criteria. <a href="#" id="resetFiltersLink">Reset filters</a></p>
+                    <p data-lang="noInvoicesFound">No invoices match your filter criteria. <a href="#" onclick="resetFilters()">Reset filters</a></p>
                 </div>
             </div>
+
+            <script>
+                let invoices = [];
+                let sortConfig = {
+                    column: 'issue_date',
+                    direction: 'desc'
+                };
+
+                async function fetchInvoices() {
+                    try {
+                        const { data, error } = await supabase
+                            .from('invoices')
+                            .select('*')
+                            .order('issue_date', { ascending: false })
+                            .limit(10);
+
+                        if (error) throw error;
+                        invoices = data;
+                        displayInvoices(data);
+                    } catch (error) {
+                        console.error('Error fetching invoices:', error);
+                        showNoResults('Error loading invoices');
+                    }
+                }
+
+                function displayInvoices(invoicesToShow) {
+                    const tbody = document.getElementById('invoicesTableBody');
+                    tbody.innerHTML = '';
+
+                    if (!invoicesToShow.length) {
+                        showNoResults();
+                        return;
+                    }
+
+                    invoicesToShow.forEach(invoice => {
+                        const row = `<tr>
+                            <td>${invoice.invoice_number}</td>
+                            <td>${invoice.client_name}</td>
+                            <td>${formatDate(invoice.issue_date)}</td>
+                            <td>${formatCurrency(invoice.total)}</td>
+                            <td><span class="status ${invoice.status.toLowerCase()}">${invoice.status}</span></td>
+                            <td class="actions">
+                                <button onclick="viewInvoice('${invoice.id}')" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="editInvoice('${invoice.id}')" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    });
+
+                    document.getElementById('noResultsMessage').style.display = 'none';
+                    document.getElementById('invoicesTable').style.display = 'table';
+                }
+
+                function filterInvoices() {
+                    const status = document.getElementById('statusFilter').value;
+                    const dateRange = document.getElementById('dateFilter').value;
+                    const amount = document.getElementById('amountFilter').value;
+                    const search = document.getElementById('searchInvoices').value.toLowerCase();
+
+                    let filtered = invoices.filter(invoice => {
+                        const matchesStatus = status === 'all' || invoice.status.toLowerCase() === status;
+                        const matchesAmount = checkAmountFilter(invoice.total, amount);
+                        const matchesDate = checkDateFilter(invoice.issue_date, dateRange);
+                        const matchesSearch = search === '' || 
+                            invoice.invoice_number.toLowerCase().includes(search) ||
+                            invoice.client_name.toLowerCase().includes(search);
+
+                        return matchesStatus && matchesAmount && matchesDate && matchesSearch;
+                    });
+
+                    displayInvoices(filtered);
+                }
+
+                function showNoResults(message = 'No invoices match your filter criteria') {
+                    document.getElementById('invoicesTable').style.display = 'none';
+                    const noResults = document.getElementById('noResultsMessage');
+                    noResults.style.display = 'block';
+                    noResults.querySelector('p').textContent = message;
+                }
+
+                // Helper functions for formatting and filtering
+                function formatDate(dateString) {
+                    return new Date(dateString).toLocaleDateString();
+                }
+
+                function formatCurrency(amount) {
+                    return new Intl.NumberFormat('pt-MZ', {
+                        style: 'currency',
+                        currency: 'MZN'
+                    }).format(amount);
+                }
+
+                function checkAmountFilter(amount, filter) {
+                    switch(filter) {
+                        case 'under1000': return amount < 1000;
+                        case '1000to5000': return amount >= 1000 && amount <= 5000;
+                        case 'over5000': return amount > 5000;
+                        default: return true;
+                    }
+                }
+
+                function checkDateFilter(date, filter) {
+                    const invoiceDate = new Date(date);
+                    const today = new Date();
+                    
+                    switch(filter) {
+                        case 'today':
+                            return invoiceDate.toDateString() === today.toDateString();
+                        case 'week':
+                            const weekAgo = new Date(today.setDate(today.getDate() - 7));
+                            return invoiceDate >= weekAgo;
+                        case 'month':
+                            const monthAgo = new Date(today.setMonth(today.getMonth() - 1));
+                            return invoiceDate >= monthAgo;
+                        case 'quarter':
+                            const quarterAgo = new Date(today.setMonth(today.getMonth() - 3));
+                            return invoiceDate >= quarterAgo;
+                        default:
+                            return true;
+                    }
+                }
+
+                // Initialize on page load
+                document.addEventListener('DOMContentLoaded', fetchInvoices);
+            </script>
 
             <!-- Metrics Cards moved here -->
             <div class="metrics-grid">
@@ -426,10 +507,16 @@
                 
                 <div class="metric-card" id="revenueCard">
                     <div class="metric-header">
-                        <i class="fas fa-dollar-sign"></i>
+                        <i class="fas fa-money-bill"></i>
                         <span data-lang="revenue" data-en="Revenue" data-pt="Receita">Revenue</span>
+                        <select id="currency-selector" class="currency-select" onchange="changeCurrency(this.value)">
+                            <option value="MZN">MZN</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="ZAR">ZAR</option>
+                        </select>
                     </div>
-                    <div class="metric-value">$0.00</div>
+                    <div class="metric-value">MZN 0.00</div>
                     <div class="metric-footer">
                         <span class="metric-label" data-lang="thisMonth" data-en="This Month" data-pt="Este Mês">This Month</span>
                         <span class="metric-change positive">0%</span>
@@ -448,15 +535,15 @@
                         <div class="drilldown-data">
                             <div class="drilldown-item">
                                 <span data-lang="products" data-en="Products" data-pt="Produtos">Products</span>
-                                <span>$18,250</span>
+                                <span>MZN 18,250</span>
                             </div>
                             <div class="drilldown-item">
                                 <span data-lang="services" data-en="Services" data-pt="Serviços">Services</span>
-                                <span>$15,330</span>
+                                <span>MZN 15,330</span>
                             </div>
                             <div class="drilldown-item">
                                 <span data-lang="subscriptions" data-en="Subscriptions" data-pt="Assinaturas">Subscriptions</span>
-                                <span>$9,000</span>
+                                <span>MZN 9,000</span>
                             </div>
                         </div>
                         <div class="drilldown-footer">
@@ -470,7 +557,7 @@
                         <i class="fas fa-credit-card"></i>
                         <span data-lang="expenses" data-en="Expenses" data-pt="Despesas">Expenses</span>
                     </div>
-                    <div class="metric-value">$0.00</div>
+                    <div class="metric-value">MZN 0.00</div>
                     <div class="metric-footer">
                         <span class="metric-label" data-lang="thisMonth" data-en="This Month" data-pt="Este Mês">This Month</span>
                         <span class="metric-change negative">0%</span>
@@ -489,19 +576,19 @@
                         <div class="drilldown-data">
                             <div class="drilldown-item">
                                 <span data-lang="operations" data-en="Operations" data-pt="Operações">Operations</span>
-                                <span>$5,240</span>
+                                <span>MZN 5,240</span>
                             </div>
                             <div class="drilldown-item">
                                 <span data-lang="marketing" data-en="Marketing" data-pt="Marketing">Marketing</span>
-                                <span>$3,150</span>
+                                <span>MZN 3,150</span>
                             </div>
                             <div class="drilldown-item">
                                 <span data-lang="payroll" data-en="Payroll" data-pt="Folha de Pagamento">Payroll</span>
-                                <span>$2,800</span>
+                                <span>MZN 2,800</span>
                             </div>
                             <div class="drilldown-item">
                                 <span data-lang="other" data-en="Other" data-pt="Outros">Other</span>
-                                <span>$1,290</span>
+                                <span>MZN 1,290</span>
                             </div>
                         </div>
                         <div class="drilldown-footer">
@@ -562,43 +649,86 @@
     <script>
         // Revenue Chart
         const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-        const revenueData = { // Store chart data
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-            datasets: [{
-                label: 'Revenue',
-                data: [32500, 28000, 42580, 38900, 45200, 38700, 42300, 44800, 48600, 52300, 45800, 58200],
-                backgroundColor: '#007ec7',
-                borderRadius: 4
-            }]
-        };
-        const revenueOptions = { // Store chart options
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
+        const revenueChart = new Chart(revenueCtx, {
+            type: 'bar',
+            data: {
+                labels: [], // Will be populated with months
+                datasets: [{
+                    label: 'Revenue',
+                    data: [], // Will be populated with revenue data
+                    backgroundColor: '#007ec7',
+                    borderRadius: 4
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
                     }
                 },
-                x: {
-                    grid: {
-                        display: false
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
                     }
                 }
             }
-        };
-        const revenueChart = new Chart(revenueCtx, {
-            type: 'bar',
-            data: revenueData,
-            options: revenueOptions
         });
-        
+
+        async function updateRevenueChart() {
+            try {
+                const today = new Date();
+                const startOfYear = new Date(today.getFullYear(), 0, 1);
+                
+                const { data: invoices, error } = await supabase
+                    .from('invoices')
+                    .select('total, issue_date')
+                    .gte('issue_date', startOfYear.toISOString())
+                    .order('issue_date');
+
+                if (error) throw error;
+
+                // Initialize monthly revenue data
+                const monthlyRevenue = Array(12).fill(0);
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                // Calculate revenue for each month
+                invoices.forEach(invoice => {
+                    const date = new Date(invoice.issue_date);
+                    const month = date.getMonth();
+                    monthlyRevenue[month] += Number(invoice.total);
+                });
+
+                // Update chart data
+                revenueChart.data.labels = months;
+                revenueChart.data.datasets[0].data = monthlyRevenue;
+                revenueChart.update();
+
+                // Update total revenue display
+                const totalRevenue = monthlyRevenue.reduce((acc, curr) => acc + curr, 0);
+                const revenueDisplay = document.querySelector('#revenueCard .metric-value');
+                if (revenueDisplay) {
+                    revenueDisplay.setAttribute('data-base-amount', totalRevenue.toString());
+                    const currentCurrency = document.getElementById('currency-selector').value;
+                    revenueDisplay.textContent = formatCurrencyByCode(totalRevenue * exchangeRates[currentCurrency], currentCurrency);
+                }
+            } catch (error) {
+                console.error('Error updating revenue chart:', error);
+            }
+        }
+
+        // Call updateRevenueChart when page loads and after new invoices are added
+        document.addEventListener('DOMContentLoaded', updateRevenueChart);
+
         // Invoice Status Chart
         const invoiceStatusCtx = document.getElementById('invoiceStatusChart').getContext('2d');
         const invoiceStatusData = { // Store chart data
@@ -639,8 +769,8 @@
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0/+esm';
 
-        const supabaseUrl = 'https://zqnthduqpzriydgbdojy.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU';
+        const supabaseUrl = 'https://qvmtozjvjflygbkjecyj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bXRvemp2amZseWdia2plY3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMjc2MjMsImV4cCI6MjA2MTcwMzYyM30.DJMC1eM5_EouM1oc07JaoXsMX_bSLn2AVCozAcdfHmo';
 
         const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -760,5 +890,98 @@
             setInterval(updateClientMetrics, 300000);
         });
     </script>
-</body>
-</html>
+
+    <!-- Display user name script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof supabase === 'undefined') return;
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !session.user) return;
+
+            let displayName = session.user.email;
+            try {
+                const { data: userRecord, error } = await supabase
+                    .from('users')
+                    .select('username')
+                    .eq('id', session.user.id)
+                    .maybeSingle(); // Use maybeSingle for better null handling
+
+                console.log('Supabase userRecord:', userRecord, 'error:', error);
+
+                if (userRecord && userRecord.username) {
+                    displayName = userRecord.username;
+                }
+            } catch (e) {
+                console.error('Error fetching username from users table:', e);
+            }
+
+            const userSpan = document.getElementById('user-displayname');
+            if (userSpan) userSpan.textContent = displayName;
+        });
+    </script>
+
+    <script>
+        // Add this after your existing scripts
+        const exchangeRates = {
+            MZN: 1,
+            USD: 0.016,  // 1 MZN = 0.016 USD
+            EUR: 0.015,  // 1 MZN = 0.015 EUR
+            ZAR: 0.30    // 1 MZN = 0.30 ZAR
+        };
+
+        function changeCurrency(newCurrency) {
+            try {
+                const revenueValue = document.querySelector('#revenueCard .metric-value');
+                const expensesValue = document.querySelector('#expensesCard .metric-value');
+                
+                // Get the base amounts in MZN
+                const revenueMZN = parseFloat(revenueValue.getAttribute('data-base-amount') || '0');
+                const expensesMZN = parseFloat(expensesValue.getAttribute('data-base-amount') || '0');
+                
+                // Convert to new currency
+                const revenueConverted = revenueMZN * exchangeRates[newCurrency];
+                const expensesConverted = expensesMZN * exchangeRates[newCurrency];
+                
+                // Update displays with new currency
+                revenueValue.textContent = formatCurrencyByCode(revenueConverted, newCurrency);
+                expensesValue.textContent = formatCurrencyByCode(expensesConverted, newCurrency);
+                
+                // Save preference
+                localStorage.setItem('preferredCurrency', newCurrency);
+                
+                // Update all drilldown values
+                updateDrilldownCurrency(newCurrency);
+            } catch (error) {
+                console.error('Error changing currency:', error);
+            }
+        }
+
+        function formatCurrencyByCode(amount, currencyCode) {
+            return new Intl.NumberFormat('pt-MZ', {
+                style: 'currency',
+                currency: currencyCode
+            }).format(amount);
+        }
+
+        function updateDrilldownCurrency(currencyCode) {
+            document.querySelectorAll('.drilldown-item span:last-child').forEach(span => {
+                const baseMZN = parseFloat(span.getAttribute('data-base-amount') || '0');
+                const converted = baseMZN * exchangeRates[currencyCode];
+                span.textContent = formatCurrencyByCode(converted, currencyCode);
+            });
+        }
+
+        // Initialize with saved preference or default to MZN
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedCurrency = localStorage.getItem('preferredCurrency') || 'MZN';
+            const currencySelector = document.getElementById('currency-selector');
+            if (currencySelector) {
+                currencySelector.value = savedCurrency;
+                changeCurrency(savedCurrency);
+            }
+        });
+
+        // Update the updateRevenueChart function to store base amounts
+        async function updateRevenueChart() {
+            try {

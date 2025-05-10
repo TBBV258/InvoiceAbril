@@ -1,12 +1,53 @@
+import { settingsManager } from '../services/settingsManager.js';
+import { languageManager } from '../services/languageManager.js';
+
 /**
  * Initialize the application
  */
 function initApp() {
+    settingsManager.addListener((type, settings) => {
+        if (type === 'invoice') {
+            applyInvoiceSettings(settings.invoice);
+        } else if (type === 'appearance') {
+            applyAppearanceSettings(settings.appearance);
+        }
+    });
+
     initTabs();
     initInvoiceItems();
     setDefaultDates();
     initTemplateSettings();
     initEventListeners();
+    
+    // Set default language and currency
+    const locale = languageManager.getLocale();
+    document.getElementById('currency').value = locale.currency;
+    
+    // Format dates according to locale
+    const today = new Date();
+    const issueDateInput = document.getElementById('issue-date');
+    issueDateInput.value = languageManager.formatDate(today);
+}
+
+function applyInvoiceSettings(settings) {
+    // Apply invoice settings to the form
+    document.getElementById('invoice-prefix').value = settings.prefix;
+    document.getElementById('currency').value = settings.currency;
+    document.getElementById('default-tax-rate').value = settings.taxRate;
+    document.getElementById('payment-terms').value = settings.paymentTerms;
+    document.getElementById('notes').value = settings.notes;
+}
+
+function applyAppearanceSettings(settings) {
+    // Apply logo if exists
+    if (settings.logo) {
+        window.companyLogo = settings.logo;
+        const logoPreview = document.querySelector('.logo-preview img');
+        if (logoPreview) {
+            logoPreview.src = settings.logo;
+            logoPreview.style.display = 'block';
+        }
+    }
 }
 
 /**
@@ -544,12 +585,7 @@ function printInvoice() {
  * @returns {string} The formatted currency string
  */
 function formatCurrency(value, currency = 'MZN') {
-    const formatter = new Intl.NumberFormat('pt-MZ', {
-        style: 'currency',
-        currency: currency
-    });
-    
-    return formatter.format(value);
+    return languageManager.formatCurrency(value);
 }
 
 /**
