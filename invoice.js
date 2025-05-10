@@ -1,11 +1,11 @@
 // Invoice Management Module JavaScript
 
 
-//const supabase = supabase.createClient('https://zqnthduqpzriydgbdojy.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU');
+//const supabase = supabase.createClient('https://qvmtozjvjflygbkjecyj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bXRvemp2amZseWdia2plY3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMjc2MjMsImV4cCI6MjA2MTcwMzYyM30.DJMC1eM5_EouM1oc07JaoXsMX_bSLn2AVCozAcdfHmo');
  
 /*const supabase = createClient(
-    'https://zqnthduqpzriydgbdojy.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU'
+    'https://qvmtozjvjflygbkjecyj.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bXRvemp2amZseWdia2plY3lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMjc2MjMsImV4cCI6MjA2MTcwMzYyM30.DJMC1eM5_EouM1oc07JaoXsMX_bSLn2AVCozAcdfHmo'
   );*/
 
 
@@ -208,8 +208,14 @@ function calculateRowTotal(row) {
     const subtotal = quantity * price;
     const vat = subtotal * 0.16; // 16% VAT
     
-    row.querySelector('.item-vat').textContent = vat.toFixed(2);
-    row.querySelector('.item-total').textContent = (subtotal + vat).toFixed(2);
+    // Format currency display
+    const formatter = new Intl.NumberFormat('pt-MZ', {
+        style: 'currency',
+        currency: document.getElementById('currency').value || 'MZN'
+    });
+    
+    row.querySelector('.item-vat').textContent = formatter.format(vat);
+    row.querySelector('.item-total').textContent = formatter.format(subtotal + vat);
 }
 
 function updateInvoiceTotals() {
@@ -220,20 +226,37 @@ function updateInvoiceTotals() {
     rows.forEach(row => {
         const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
         const price = parseFloat(row.querySelector('.item-price').value) || 0;
-        
         const rowSubtotal = quantity * price;
-        const rowVat = rowSubtotal * 0.16;
-        
+        const rowVat = rowSubtotal * 0.16; // 16% VAT
         subtotal += rowSubtotal;
         totalVat += rowVat;
     });
     
     const grandTotal = subtotal + totalVat;
+    const currency = document.getElementById('currency').value || 'MZN';
+    const formatter = new Intl.NumberFormat('pt-MZ', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
     
-    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-    document.getElementById('totalVat').textContent = totalVat.toFixed(2);
-    document.getElementById('invoiceTotal').textContent = grandTotal.toFixed(2);
+    // Update totals with formatted values
+    document.getElementById('subtotal').textContent = formatter.format(subtotal);
+    document.getElementById('totalVat').textContent = formatter.format(totalVat);
+    document.getElementById('invoiceTotal').textContent = formatter.format(grandTotal);
 }
+
+// Call updateInvoiceTotals whenever an item changes
+document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-price')) {
+        const row = e.target.closest('.item-row');
+        if (row) {
+            calculateRowTotal(row);
+            updateInvoiceTotals();
+        }
+    }
+});
 
 function addInvoiceItem() {
     const itemsTableBody = document.querySelector('#itemsTable tbody');
@@ -383,279 +406,123 @@ function resetInvoiceForm() {
     }
 }
 
-function saveInvoice() {
-    // Collect form data
+async function saveInvoice() {
     const invoiceData = collectInvoiceData();
+    const invoiceNumber = invoiceData.invoiceNumber;
     
-    // Simulate API call to save invoice
-    console.log('Saving invoice:', invoiceData);
-    
-    // In a real application, you would send this data to your server
-    // fetch('/api/invoices', {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json'
-    //     },
-    //     body: JSON.stringify(invoiceData)
-    // })
-    // .then(response => response.json())
-    // .then(data => {
-    //     // Handle successful save
-    // })
-    // .catch(error => {
-    //     // Handle error
-    // });
-    
-    // For demo, simulate successful save
-    showNotification('Invoice created successfully!');
-    closeAllModals();
-    
-    // In a real app, you would refresh the invoice list or add the new invoice to the table
+    try {
+        // First generate and get the PDF content
+        const invoiceHTML = await generateInvoiceHTML(invoiceData);
+        const pdfBlob = await html2pdf().from(invoiceHTML).outputPdf('blob');
+        
+        // Upload PDF to Supabase Storage
+        const { data: fileData, error: uploadError } = await supabase.storage
+            .from('invoices')
+            .upload(`${invoiceNumber}.pdf`, pdfBlob, {
+                contentType: 'application/pdf',
+                upsert: true
+            });
+
+        if (uploadError) throw uploadError;
+
+        // Get the public URL for the uploaded PDF
+        const { data: { publicUrl } } = supabase.storage
+            .from('invoices')
+            .getPublicUrl(`${invoiceNumber}.pdf`);
+
+        // Save invoice data to Supabase table
+        const { data, error } = await supabase
+            .from('invoices')
+            .insert([{
+                invoice_number: invoiceData.invoiceNumber,
+                client_name: invoiceData.clientName,
+                client_email: invoiceData.clientEmail,
+                client_address: invoiceData.clientAddress,
+                client_tax_id: invoiceData.clientTaxId,
+                issue_date: invoiceData.issueDate,
+                due_date: invoiceData.dueDate,
+                currency: invoiceData.currency,
+                payment_terms: invoiceData.paymentTerms,
+                notes: invoiceData.notes,
+                status: 'pending',
+                items: invoiceData.items,
+                subtotal: invoiceData.subtotal,
+                total_tax: invoiceData.totalTax,
+                total: invoiceData.total,
+                pdf_url: publicUrl
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        showNotification('Invoice saved successfully!');
+        closeAllModals();
+        
+        // Refresh the invoices list
+        await fetchInvoices();
+        
+    } catch (error) {
+        console.error('Error saving invoice:', error);
+        showNotification('Error saving invoice. Please try again.');
+    }
 }
 
-function collectInvoiceData() {
-    // Collect all form data into a structured object
-    const invoiceData = {
-        invoiceNumber: document.getElementById('invoiceNumber').value,
-        clientName: document.getElementById('clientName').value,
-        clientEmail: document.getElementById('clientEmail').value,
-        clientAddress: document.getElementById('clientAddress').value,
-        clientTaxId: document.getElementById('clientTaxId').value,
-        issueDate: document.getElementById('issueDate').value,
-        dueDate: document.getElementById('dueDate').value,
-        currency: document.getElementById('currency').value,
-        paymentTerms: document.getElementById('paymentTerms').value,
-        notes: document.getElementById('notes').value,
-        status: 'pending', // Default status for new invoices
-        items: [],
-        subtotal: parseFloat(document.getElementById('subtotal').textContent),
-        totalTax: parseFloat(document.getElementById('totalVat').textContent),
-        total: parseFloat(document.getElementById('invoiceTotal').textContent)
+// Update the event listener for the finalize button
+document.getElementById('finalizeInvoiceBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (validateInvoiceForm()) {
+        saveInvoice();
+    }
+});
+
+function validateInvoiceForm() {
+    // Basic form validation
+    const requiredFields = {
+        'client-name': 'Client Name',
+        'clientEmail': 'Client Email',
+        'clientAddress': 'Client Address',
+        'clientTaxId': 'Client Tax ID'
     };
     
-    // Collect all invoice items
-    const itemRows = document.querySelectorAll('.item-row');
-    itemRows.forEach(row => {
+    for (const [id, label] of Object.entries(requiredFields)) {
+        const field = document.getElementById(id);
+        if (!field || !field.value.trim()) {
+            showNotification(`${label} is required`);
+            field?.focus();
+            return false;
+        }
+    }
+    
+    // Validate items
+    const items = document.querySelectorAll('.item-row');
+    let hasValidItem = false;
+    
+    items.forEach(row => {
         const description = row.querySelector('.item-description').value;
-        const quantity = parseFloat(row.querySelector('.item-quantity').value);
-        const price = parseFloat(row.querySelector('.item-price').value);
-        const vat = parseFloat(row.querySelector('.item-vat').textContent);
-        const total = parseFloat(row.querySelector('.item-total').textContent);
+        const quantity = row.querySelector('.item-quantity').value;
+        const price = row.querySelector('.item-price').value;
         
-        // Only add non-empty items
-        if (description.trim() !== '' && quantity > 0) {
-            invoiceData.items.push({
-                description,
-                quantity,
-                price,
-                iva: 16, // 16% VAT rate
-                vat,
-                total
-            });
+        if (description && quantity > 0 && price > 0) {
+            hasValidItem = true;
         }
     });
     
-    return invoiceData;
+    if (!hasValidItem) {
+        showNotification('At least one valid item is required');
+        return false;
+    }
+    
+    return true;
 }
 
-function previewInvoice() {
-    // Get invoice modal and set it to keep in background
-    const invoiceModal = document.getElementById('invoiceModal');
-    if (invoiceModal) {
-        invoiceModal.style.display = 'none'; // Hide but don't fully close
-    }
-
-    const invoiceData = getInvoiceData();
-    
-    // Update view modal for preview mode
-    const timelineSection = document.querySelector('.invoice-view-footer');
-    const modalFooter = document.querySelector('#viewInvoiceModal .modal-footer');
-    if (timelineSection) timelineSection.style.display = 'none';
-    if (modalFooter) modalFooter.style.display = 'none';
-    
-    // Update modal title and close button behavior
-    const modalTitle = document.querySelector('#viewInvoiceModal .modal-header h2');
-    const closeBtn = document.querySelector('#viewInvoiceModal .close-modal');
-    if (modalTitle) modalTitle.textContent = 'Invoice Preview';
-    if (closeBtn) {
-        // Remove existing listeners
-        closeBtn.replaceWith(closeBtn.cloneNode(true));
-        // Add new close behavior
-        document.querySelector('#viewInvoiceModal .close-modal').addEventListener('click', function() {
-            document.getElementById('viewInvoiceModal').style.display = 'none';
-            document.getElementById('invoiceModal').style.display = 'block';
-        });
-    }
-    
-    // Generate and display preview
-    generateInvoiceHTML(invoiceData).then(invoiceHTML => {
-        const frame = document.getElementById('invoicePreviewFrame');
-        frame.contentWindow.document.open();
-        frame.contentWindow.document.write(invoiceHTML);
-        frame.contentWindow.document.close();
-        
-        document.getElementById('viewInvoiceModal').style.display = 'block';
-    });
+function showNotification(message) {
+    // Replace with your preferred notification system
+    alert(message);
 }
 
-function openViewInvoiceModal(invoiceNumber) {
-    // Show timeline and buttons for view mode
-    const timelineSection = document.querySelector('.invoice-view-footer');
-    const modalFooter = document.querySelector('#viewInvoiceModal .modal-footer');
-    if (timelineSection) timelineSection.style.display = 'block';
-    if (modalFooter) modalFooter.style.display = 'block';
-    
-    // Update modal title for viewing
-    const modalTitle = document.querySelector('#viewInvoiceModal .modal-header h2');
-    if (modalTitle) modalTitle.textContent = 'Invoice Details';
-    
-    // In a real app, you would fetch the invoice details from the server
-    // For demo, we'll use hardcoded data
-    const invoiceDetails = {
-        'INV-2025-0001': {
-            invoiceNumber: 'INV-2025-0001',
-            status: 'paid',
-            clientName: 'Globex Industries',
-            issueDate: '2025-03-15',
-            dueDate: '2025-04-14',
-            amount: '$2,580.00',
-            timeline: [
-                { date: 'Mar 15, 2025', title: 'Invoice Created', active: true },
-                { date: 'Mar 16, 2025', title: 'Sent to Client', active: true },
-                { date: 'Mar 20, 2025', title: 'Payment Received', active: true }
-            ]
-        },
-        'INV-2025-0002': {
-            invoiceNumber: 'INV-2025-0002',
-            status: 'pending',
-            clientName: 'Stark Industries',
-            issueDate: '2025-03-18',
-            dueDate: '2025-04-17',
-            amount: '$4,750.00',
-            timeline: [
-                { date: 'Mar 18, 2025', title: 'Invoice Created', active: true },
-                { date: 'Mar 19, 2025', title: 'Sent to Client', active: true },
-                { date: 'Pending', title: 'Payment Received', active: false }
-            ]
-        },
-        'INV-2025-0003': {
-            invoiceNumber: 'INV-2025-0003',
-            status: 'overdue',
-            clientName: 'Wayne Enterprises',
-            issueDate: '2025-03-10',
-            dueDate: '2025-04-09',
-            amount: '$8,350.00',
-            timeline: [
-                { date: 'Mar 10, 2025', title: 'Invoice Created', active: true },
-                { date: 'Mar 11, 2025', title: 'Sent to Client', active: true },
-                { date: 'Overdue', title: 'Payment Received', active: false }
-            ]
-        }
-    };
-    
-    // If the invoice exists in our demo data
-    if (invoiceDetails[invoiceNumber]) {
-        const invoice = invoiceDetails[invoiceNumber];
-        
-        // Update the modal with invoice details
-        document.getElementById('viewInvoiceNumber').textContent = invoice.invoiceNumber;
-        
-        const statusElement = document.getElementById('viewInvoiceStatus');
-        statusElement.textContent = invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1);
-        statusElement.className = 'status ' + invoice.status;
-        
-        // Update timeline
-        const timelineContainer = document.querySelector('.status-timeline');
-        timelineContainer.innerHTML = '';
-        
-        invoice.timeline.forEach(event => {
-            const timelineItem = document.createElement('div');
-            timelineItem.className = 'timeline-item' + (event.active ? ' active' : '');
-            
-            timelineItem.innerHTML = `
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                    <span class="timeline-date">${event.date}</span>
-                    <span class="timeline-title">${event.title}</span>
-                </div>
-            `;
-            
-            timelineContainer.appendChild(timelineItem);
-        });
-        
-        // Set up the iframe to display the invoice template
-        // In a real app, this would load the actual invoice template with data
-        const iframe = document.getElementById('invoicePreviewFrame');
-        iframe.src = 'template01.html';
-        
-        // Show/hide "Mark as Paid" button based on status
-        const markPaidBtn = document.getElementById('markPaidBtn');
-        if (markPaidBtn) {
-            if (invoice.status === 'paid') {
-                markPaidBtn.style.display = 'none';
-            } else {
-                markPaidBtn.style.display = '';
-                
-                // Add event listener for mark as paid button
-                markPaidBtn.onclick = function() {
-                    markInvoiceAsPaid(invoiceNumber);
-                };
-            }
-        }
-        
-        // Open the modal
-        openModal('viewInvoiceModal');
-    } else {
-        console.error('Invoice not found:', invoiceNumber);
-    }
-}
-
-function markInvoiceAsPaid(invoiceNumber) {
-    // In a real app, you would make an API call to update the invoice status
-    console.log('Marking invoice as paid:', invoiceNumber);
-    
-    // For demo, simulate successful update
-    document.getElementById('viewInvoiceStatus').textContent = 'Paid';
-    document.getElementById('viewInvoiceStatus').className = 'status paid';
-    
-    // Update timeline
-    const timelineItems = document.querySelectorAll('.timeline-item');
-    timelineItems.forEach(item => item.classList.add('active'));
-    
-    const lastTimelineItem = timelineItems[timelineItems.length - 1];
-    if (lastTimelineItem) {
-        const dateSpan = lastTimelineItem.querySelector('.timeline-date');
-        if (dateSpan) {
-            dateSpan.textContent = new Date().toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
-            });
-        }
-    }
-    
-    // Hide the "Mark as Paid" button
-    document.getElementById('markPaidBtn').style.display = 'none';
-    
-    showNotification('Invoice marked as paid');
-}
-
-function updateInvoiceTemplate(templateId) {
-    // In a real app, this would load different invoice templates
-    console.log('Switching to template:', templateId);
-    
-    const iframe = document.getElementById('invoicePreviewFrame');
-    switch (templateId) {
-        case 'template1':
-            iframe.src = 'template01.html';
-            break;
-        case 'template2':
-            iframe.src = 'template02.html';
-            break;
-        case 'template3':
-            iframe.src = 'template01.html'; // For demo, just reuse template1
-            break;
-    }
+function fetchInvoices() {
+    // Implement fetching and displaying invoices from Supabase
 }
 
 function setupCharts() {
@@ -1141,23 +1008,50 @@ document.getElementById('previewInvoiceBtn').addEventListener('click', async fun
     document.getElementById('viewInvoiceModal').style.display = 'block';
 });
 
-// Download functionality
-document.getElementById('downloadPdfBtn').addEventListener('click', async function() {
-    const invoiceData = getInvoiceData();
-    const invoiceHTML = await generateInvoiceHTML(invoiceData);
-    
-    // Create a hidden iframe for PDF generation
-    const iframe = document.createElement('iframe');
-    iframe.style.visibility = 'hidden';
-    document.body.appendChild(iframe);
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write(invoiceHTML);
-    iframe.contentWindow.document.close();
-    
-    // Wait for content to load
-    setTimeout(() => {
-        iframe.contentWindow.print();
-        document.body.removeChild(iframe);
-    }, 500);
-});
+// Add functionality for Finalize & Share buttons
+
+const downloadBtn = document.getElementById('downloadBtn');
+if (downloadBtn) {
+    downloadBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const invoiceData = getInvoiceData();
+        generateInvoiceHTML(invoiceData).then(invoiceHTML => {
+            const element = document.createElement('div');
+            element.innerHTML = invoiceHTML;
+            const opt = {
+                margin: 1,
+                filename: `invoice-${invoiceData.invoiceNumber}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        });
+    });
+}
+
+const emailBtn = document.getElementById('emailBtn');
+if (emailBtn) {
+    emailBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const invoiceData = getInvoiceData();
+        sendInvoiceEmail(invoiceData);
+    });
+}
+
+const whatsappBtn = document.getElementById('whatsappBtn');
+if (whatsappBtn) {
+    whatsappBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const invoiceData = getInvoiceData();
+        const message = `Invoice ${invoiceData.invoiceNumber} with Total ${invoiceData.total}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    });
+}
+
+function sendInvoiceEmail(invoiceData) {
+    // For demo, simulate email sending. In a real app, integrate with an email API.
+    alert(`Sending invoice ${invoiceData.invoiceNumber} via email to ${invoiceData.clientEmail}`);
+}
 
