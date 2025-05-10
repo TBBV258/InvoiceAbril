@@ -185,18 +185,6 @@
             <h2>Join Us</h2>
             <form onsubmit="return handleSignup(event)">
                 <div class="form-group">
-                    <label for="signupName">Full Name</label>
-                    <input type="text" id="signupName" required placeholder="Enter your full name">
-                </div>
-                <div class="form-group">
-                    <label for="signupCompanyName">Company Name</label>
-                    <input type="text" id="signupCompanyName" placeholder="Enter your company name">
-                </div>
-                <div class="form-group">
-                    <label for="signupNuit">NUIT</label>
-                    <input type="text" id="signupNuit" placeholder="Enter your NUIT">
-                </div>
-                <div class="form-group">
                     <label for="signupEmail">Email Address</label>
                     <input type="email" id="signupEmail" required placeholder="Enter your email">
                 </div>
@@ -208,10 +196,6 @@
                     <label for="confirmPassword">Confirm Password</label>
                     <input type="password" id="confirmPassword" required placeholder="Confirm your password">
                 </div>
-                <div class="form-group">
-                    <label for="signupLogo">Upload Logo</label>
-                    <input type="file" id="signupLogo" accept="image/*">
-                </div>
                 <button type="submit">Create Account</button>
             </form>
             <div class="switch-form">
@@ -220,159 +204,87 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module">
+        import { supabase } from './auth.js';
 
-    <script>
-        // Initialize Supabase client first
-        const supabaseUrl = 'https://zqnthduqpzriydgbdojy.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxbnRoZHVxcHpyaXlkZ2Jkb2p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4OTkzOTcsImV4cCI6MjA1NzQ3NTM5N30.fZqsPqkbJ4m-Lp7BRTAOuxU5_6MXj8QJERUTreshKIU';
-        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        console.log('Supabase client initialized:', supabase);
 
-        async function toggleForms() {
+        // Define the toggleForms function
+        function toggleForms() {
             const loginForm = document.getElementById('loginForm');
             const signupForm = document.getElementById('signupForm');
-            
+
+            // Toggle the "active" class to show/hide forms
             loginForm.classList.toggle('active');
             signupForm.classList.toggle('active');
         }
+
+        // Attach the function to the global window object
+        window.toggleForms = toggleForms;
 
         async function handleLogin(event) {
             event.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
-            const button = event.target.querySelector('button');
-            button.innerHTML = 'Signing in...';
-            button.disabled = true;
-            
+
             try {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                const { data, error } = await supabase.auth.signInWithPassword({
                     email: email,
                     password: password
                 });
 
                 if (error) throw error;
-
-                // Check if user has completed onboarding
-                const { data: userData, error: userError } = await supabaseClient
-                    .from('users')
-                    .select('onboarding_completed')
-                    .eq('id', data.user.id)
-                    .single();
-
-                if (userError) throw userError;
-
-                // Redirect based on onboarding status
-                if (!userData?.onboarding_completed) {
-                    window.location.href = 'WalakaGettingStarted/index.html';
-                } else {
-                    window.location.href = 'dashboard.html';
-                }
+                console.log('Logged in:', data);
+                window.location.href = "dashboard.html";
             } catch (error) {
                 console.error('Error logging in:', error.message);
-                alert(error.message);
-                button.innerHTML = 'Sign In';
-                button.disabled = false;
             }
         }
 
         async function handleSignup(event) {
             event.preventDefault();
-            const name = document.getElementById('signupName').value;
-            const companyName = document.getElementById('signupCompanyName').value;
-            const nuit = document.getElementById('signupNuit').value;
+            console.log('Signup function called');
+
             const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
-            const logoFile = document.getElementById('signupLogo').files[0];
 
             if (password !== confirmPassword) {
-                alert("Passwords don't match!");
+                alert('Passwords do not match!');
                 return;
             }
 
-            const button = event.target.querySelector('button');
-            button.innerHTML = 'Creating account...';
-            button.disabled = true;
-            
             try {
-                const { data, error } = await supabaseClient.auth.signUp({
+                console.log('Attempting to sign up with:', email);
+                const { data, error } = await supabase.auth.signUp({
                     email: email,
-                    password: password,
-                    options: {
-                        data: { 
-                            username: name,
-                            company_name: companyName,
-                            nuit: nuit
-                         }
-                    }
+                    password: password
                 });
 
-                if (error) throw error;
-
-                console.log('Signed up:', data);
-
-                // Upload logo if provided
-                if (logoFile) {
-                    const { data: uploadData, error: uploadError } = await supabaseClient
-                        .storage
-                        .from('logos')
-                        .upload(`${data.user.id}/${logoFile.name}`, logoFile, {
-                            cacheControl: '3600',
-                            upsert: false
-                        });
-
-                    if (uploadError) {
-                        console.error('Error uploading logo:', uploadError.message);
-                        alert('Error uploading logo. Please try again.');
-                    } else {
-                        const logoUrl = `https://zqnthduqpzriydgbdojy.supabase.co/storage/v1/object/public/logos/${uploadData.path}`;
-                        
-                        // Update user metadata with logo URL
-                        const { data: updateData, error: updateError } = await supabaseClient
-                            .from('users')
-                            .insert([{ id: data.user.id, username: name, company_name: companyName, nuit: nuit, logo: logoUrl }]);
-
-                        if (updateError) {
-                            console.error('Error updating user profile:', updateError.message);
-                            alert('Error updating user profile. Please try again.');
-                        } else {
-                            alert('Account created! Please check your email for verification link.');
-                        }
-                    }
+                if (error) {
+                    console.error('Error signing up:', error.message);
+                    alert(`Error: ${error.message}`);
                 } else {
-                    // If no logo, create user profile without logo URL
-                    const { data: updateData, error: updateError } = await supabaseClient
-                        .from('users')
-                        .insert([{ id: data.user.id, username: name, company_name: companyName, nuit: nuit }]);
-
-                    if (updateError) {
-                        console.error('Error updating user profile:', updateError.message);
-                        alert('Error updating user profile. Please try again.');
-                    } else {
-                        alert('Account created! Please check your email for verification link.');
-                    }
+                    console.log('Signed up successfully:', data);
+                    alert('Account created successfully!');
                 }
-
-                toggleForms(); // Switch back to login form
             } catch (error) {
-                console.error('Error signing up:', error.message);
-                alert(error.message);
-            } finally {
-                button.innerHTML = 'Create Account';
-                button.disabled = false;
+                console.error('Unexpected error:', error.message);
             }
         }
 
-        async function checkUser() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user) {
-                window.location.href = 'dashboard.html';
-            }
-        }
+        // Attach the login and signup handlers to the global window object
+        window.handleLogin = handleLogin;
+        window.handleSignup = handleSignup;
 
-        checkUser();
+        console.log(
+            document.getElementById('description'),
+            document.getElementById('price'),
+            document.getElementById('tax-code'),
+            document.getElementById('tax-rate'),
+            document.getElementById('vat'),
+            document.getElementById('industry')
+        );
     </script>
-
-    <script src="auth.js"></script>
 </body>
 </html>
